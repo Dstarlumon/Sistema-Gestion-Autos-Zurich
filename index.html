@@ -1,0 +1,2599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zurich Seguros - Sistema de Gestión Autos 2026</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        /* Header & Navigation */
+        header {
+            background: linear-gradient(135deg, #003399 0%, #02296A 100%);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #4caf50;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .nav-tab {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: #003399;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        /* Module Wrapper */
+        .module {
+            display: none;
+        }
+
+        .module.active {
+            display: block;
+        }
+
+        /* Tabs within modules (Form vs Data) */
+        .module-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .module-tab {
+            background: none;
+            border: none;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .module-tab:hover {
+            color: #003399;
+        }
+
+        .module-tab.active {
+            color: #003399;
+            border-bottom-color: #003399;
+        }
+
+        .module-content {
+            display: none;
+        }
+
+        .module-content.active {
+            display: block;
+        }
+
+        /* Form Styles */
+        .form-container {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #003399;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2167AE;
+            box-shadow: 0 0 0 3px rgba(33, 103, 174, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #003399;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #002260;
+            box-shadow: 0 4px 12px rgba(0, 51, 153, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e8e8e8;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #cc0000;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Table Styles */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+
+        .filters-container {
+            padding: 20px;
+            background: #f5f7fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #003399;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .kpi-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-left: 4px solid #003399;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: #999;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #003399;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: #f5f7fa;
+            border-bottom: 2px solid #e0e0e0;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #003399;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f9fbff;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: white;
+            border-left: 4px solid #4caf50;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.error {
+            border-left-color: #ff4444;
+        }
+
+        .toast.warning {
+            border-left-color: #ff9800;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #003399;
+            margin-bottom: 15px;
+        }
+
+        .modal-text {
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #003399;
+            margin-bottom: 15px;
+        }
+
+        /* Configuration */
+        .config-section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+
+        .config-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #003399;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        .code-block {
+            background: #f5f7fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+            color: #333;
+        }
+
+        .instruction-text {
+            color: #666;
+            font-size: 13px;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-tabs {
+                overflow-x: auto;
+            }
+
+            .kpi-section {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                max-width: 90%;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header {
+                padding: 10px 10px;
+            }
+
+            .header-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .nav-tabs {
+                gap: 4px;
+            }
+
+            .nav-tab {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+
+            .form-actions {
+                flex-direction: column-reverse;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-top">
+            <div class="header-title">Zurich Seguros — Sistema de Gestión Autos 2026</div>
+            <div class="connection-indicator">
+                <span class="status-dot connected" id="statusDot"></span>
+                <span id="connectionStatus">Conectado a Google Sheets</span>
+            </div>
+        </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-module="inbound">📥 Inbound</button>
+            <button class="nav-tab" data-module="pauta">📢 Pauta</button>
+            <button class="nav-tab" data-module="renovaciones">🔄 Renov</button>
+            <button class="nav-tab" data-module="ventas">💰 Ventas</button>
+            <button class="nav-tab" data-module="calidad">📋 Calidad</button>
+            <button class="nav-tab" data-module="dashboard">📊 Dashboard</button>
+            <button class="nav-tab" data-module="config">⚙️ Config</button>
+        </div>
+    </header>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <div class="modal-title">Confirmar Eliminación</div>
+            <div class="modal-text">¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.</div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+
+        <!-- MODULE 1: INBOUND & CHATBOT -->
+        <div class="module active" id="module-inbound">
+            <div class="module-tabs">
+                <button class="module-tab active" data-view="form">➕ Nuevo Registro</button>
+                <button class="module-tab" data-view="table">📋 Registros</button>
+            </div>
+
+            <div class="module-content active" data-view="form">
+                <div class="form-container">
+                    <form id="inboundForm" onsubmit="submitForm(event, 'inbound')">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha</label>
+                                <input type="date" id="inbound_fecha" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Agente</label>
+                                <select id="inbound_agente" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre del Cliente</label>
+                                <input type="text" id="inbound_nombre" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="text" id="inbound_telefono" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Documento</label>
+                                <input type="text" id="inbound_documento">
+                            </div>
+                            <div class="form-group">
+                                <label>Correo</label>
+                                <input type="email" id="inbound_correo">
+                            </div>
+                            <div class="form-group">
+                                <label>Placa</label>
+                                <input type="text" id="inbound_placa" class="uppercase">
+                            </div>
+                            <div class="form-group">
+                                <label>Ciudad</label>
+                                <input type="text" id="inbound_ciudad">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Valor Póliza</label>
+                                <input type="text" id="inbound_valor" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>¿Realizaste Cotización?</label>
+                                <select id="inbound_cotizacion" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Medio</label>
+                                <select id="inbound_medio" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Directa">Directa</option>
+                                    <option value="Intermediario">Intermediario</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Base</label>
+                                <select id="inbound_base" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Inbound">Inbound</option>
+                                    <option value="Chatbot">Chatbot</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Tipificación</label>
+                                <select id="inbound_tipificacion" required></select>
+                            </div>
+                        </div>
+
+                        <div class="form-row form-full-width">
+                            <div class="form-group form-full-width">
+                                <label>Observación</label>
+                                <textarea id="inbound_observacion"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn btn-secondary">Limpiar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="module-content" data-view="table">
+                <div class="kpi-section" id="inbound-kpi">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Total Registros</div>
+                        <div class="kpi-value" id="inbound-total">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">En Proceso</div>
+                        <div class="kpi-value" id="inbound-proceso">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">No Contesta</div>
+                        <div class="kpi-value" id="inbound-nocontesta">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Ventas</div>
+                        <div class="kpi-value" id="inbound-ventas">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Interesado</div>
+                        <div class="kpi-value" id="inbound-interesado">0</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="filters-container">
+                        <div class="filter-group">
+                            <label>Fecha Desde</label>
+                            <input type="date" id="inbound-filter-desde">
+                        </div>
+                        <div class="filter-group">
+                            <label>Fecha Hasta</label>
+                            <input type="date" id="inbound-filter-hasta">
+                        </div>
+                        <div class="filter-group">
+                            <label>Agente</label>
+                            <select id="inbound-filter-agente">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Tipificación</label>
+                            <select id="inbound-filter-tipificacion">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Base</label>
+                            <select id="inbound-filter-base">
+                                <option value="">Todas</option>
+                                <option value="Inbound">Inbound</option>
+                                <option value="Chatbot">Chatbot</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" onclick="applyFilters('inbound')">Aplicar Filtros</button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table id="inbound-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Agente</th>
+                                    <th>Nombre</th>
+                                    <th>Teléfono</th>
+                                    <th>Documento</th>
+                                    <th>Placa</th>
+                                    <th>Ciudad</th>
+                                    <th>Valor</th>
+                                    <th>Cotización</th>
+                                    <th>Medio</th>
+                                    <th>Tipificación</th>
+                                    <th>Base</th>
+                                    <th>Observación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inbound-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 2: PAUTA & OTROS -->
+        <div class="module" id="module-pauta">
+            <div class="module-tabs">
+                <button class="module-tab active" data-view="form">➕ Nuevo Registro</button>
+                <button class="module-tab" data-view="table">📋 Registros</button>
+            </div>
+
+            <div class="module-content active" data-view="form">
+                <div class="form-container">
+                    <form id="pautaForm" onsubmit="submitForm(event, 'pauta')">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha</label>
+                                <input type="date" id="pauta_fecha" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Agente</label>
+                                <select id="pauta_agente" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre del Cliente</label>
+                                <input type="text" id="pauta_nombre" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="text" id="pauta_telefono" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Documento</label>
+                                <input type="text" id="pauta_documento">
+                            </div>
+                            <div class="form-group">
+                                <label>Correo</label>
+                                <input type="email" id="pauta_correo">
+                            </div>
+                            <div class="form-group">
+                                <label>Placa</label>
+                                <input type="text" id="pauta_placa" class="uppercase">
+                            </div>
+                            <div class="form-group">
+                                <label>Ciudad</label>
+                                <input type="text" id="pauta_ciudad">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Valor Póliza</label>
+                                <input type="text" id="pauta_valor" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>¿Realizaste Cotización?</label>
+                                <select id="pauta_cotizacion" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Medio</label>
+                                <select id="pauta_medio" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Directa">Directa</option>
+                                    <option value="Intermediario">Intermediario</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Base</label>
+                                <select id="pauta_base" required></select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Tipificación</label>
+                                <select id="pauta_tipificacion" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Campaña/Origen</label>
+                                <input type="text" id="pauta_campana">
+                            </div>
+                        </div>
+
+                        <div class="form-row form-full-width">
+                            <div class="form-group form-full-width">
+                                <label>Observación</label>
+                                <textarea id="pauta_observacion"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn btn-secondary">Limpiar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="module-content" data-view="table">
+                <div class="kpi-section" id="pauta-kpi">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Total Registros</div>
+                        <div class="kpi-value" id="pauta-total">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Contactados</div>
+                        <div class="kpi-value" id="pauta-contactados">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">No Contacto</div>
+                        <div class="kpi-value" id="pauta-nocontacto">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Ventas</div>
+                        <div class="kpi-value" id="pauta-ventas">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">CPA Indicador</div>
+                        <div class="kpi-value" id="pauta-cpa">$0</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="filters-container">
+                        <div class="filter-group">
+                            <label>Fecha Desde</label>
+                            <input type="date" id="pauta-filter-desde">
+                        </div>
+                        <div class="filter-group">
+                            <label>Fecha Hasta</label>
+                            <input type="date" id="pauta-filter-hasta">
+                        </div>
+                        <div class="filter-group">
+                            <label>Agente</label>
+                            <select id="pauta-filter-agente">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Base</label>
+                            <select id="pauta-filter-base">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" onclick="applyFilters('pauta')">Aplicar Filtros</button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table id="pauta-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Agente</th>
+                                    <th>Nombre</th>
+                                    <th>Teléfono</th>
+                                    <th>Documento</th>
+                                    <th>Placa</th>
+                                    <th>Ciudad</th>
+                                    <th>Valor</th>
+                                    <th>Cotización</th>
+                                    <th>Medio</th>
+                                    <th>Base</th>
+                                    <th>Campaña</th>
+                                    <th>Observación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pauta-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 3: RENOVACIONES -->
+        <div class="module" id="module-renovaciones">
+            <div class="module-tabs">
+                <button class="module-tab active" data-view="form">➕ Nuevo Registro</button>
+                <button class="module-tab" data-view="table">📋 Registros</button>
+            </div>
+
+            <div class="module-content active" data-view="form">
+                <div class="form-container">
+                    <form id="renovacionesForm" onsubmit="submitForm(event, 'renovaciones')">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha</label>
+                                <input type="date" id="renov_fecha" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Agente</label>
+                                <select id="renov_agente" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre del Cliente</label>
+                                <input type="text" id="renov_nombre" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="text" id="renov_telefono" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Documento</label>
+                                <input type="text" id="renov_documento">
+                            </div>
+                            <div class="form-group">
+                                <label>N° Póliza Actual</label>
+                                <input type="text" id="renov_poliza">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha Vencimiento</label>
+                                <input type="date" id="renov_vencimiento">
+                            </div>
+                            <div class="form-group">
+                                <label>Placa</label>
+                                <input type="text" id="renov_placa" class="uppercase">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Valor Póliza Actual</label>
+                                <input type="text" id="renov_valor_actual" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>Valor Renovación</label>
+                                <input type="text" id="renov_valor_renov" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>¿Se Renovó?</label>
+                                <select id="renov_renovado" required onchange="toggleRazonNoRenovacion()">
+                                    <option value="">Seleccionar</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                    <option value="En proceso">En proceso</option>
+                                    <option value="No contactado">No contactado</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Medio</label>
+                                <select id="renov_medio" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Directa">Directa</option>
+                                    <option value="Intermediario">Intermediario</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group" id="razonNoRenovacionGroup" style="display: none;">
+                                <label>Razón No Renovación</label>
+                                <select id="renov_razon">
+                                    <option value="">Seleccionar</option>
+                                    <option value="No interesado">No interesado</option>
+                                    <option value="Precio">Precio</option>
+                                    <option value="Otra compañía">Otra compañía</option>
+                                    <option value="Vendió vehículo">Vendió vehículo</option>
+                                    <option value="No contactado">No contactado</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row form-full-width">
+                            <div class="form-group form-full-width">
+                                <label>Observación</label>
+                                <textarea id="renov_observacion"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn btn-secondary">Limpiar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="module-content" data-view="table">
+                <div class="kpi-section" id="renov-kpi">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Total Pólizas</div>
+                        <div class="kpi-value" id="renov-total">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Renovadas</div>
+                        <div class="kpi-value" id="renov-renovadas">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">En Proceso</div>
+                        <div class="kpi-value" id="renov-proceso">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">No Renovadas</div>
+                        <div class="kpi-value" id="renov-norenov">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">% Renovación</div>
+                        <div class="kpi-value" id="renov-porcentaje">0%</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="filters-container">
+                        <div class="filter-group">
+                            <label>Fecha Desde</label>
+                            <input type="date" id="renov-filter-desde">
+                        </div>
+                        <div class="filter-group">
+                            <label>Fecha Hasta</label>
+                            <input type="date" id="renov-filter-hasta">
+                        </div>
+                        <div class="filter-group">
+                            <label>Agente</label>
+                            <select id="renov-filter-agente">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" onclick="applyFilters('renovaciones')">Aplicar Filtros</button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table id="renov-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Agente</th>
+                                    <th>Nombre</th>
+                                    <th>Teléfono</th>
+                                    <th>N° Póliza</th>
+                                    <th>Vencimiento</th>
+                                    <th>Placa</th>
+                                    <th>Valor Actual</th>
+                                    <th>Valor Renov</th>
+                                    <th>¿Renovó?</th>
+                                    <th>Medio</th>
+                                    <th>Razón</th>
+                                    <th>Observación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="renov-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 4: VENTAS -->
+        <div class="module" id="module-ventas">
+            <div class="module-tabs">
+                <button class="module-tab active" data-view="form">➕ Nuevo Registro</button>
+                <button class="module-tab" data-view="table">📋 Registros</button>
+            </div>
+
+            <div class="module-content active" data-view="form">
+                <div class="form-container">
+                    <form id="ventasForm" onsubmit="submitForm(event, 'ventas')">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha Venta</label>
+                                <input type="date" id="venta_fecha" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Agente</label>
+                                <select id="venta_agente" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre del Cliente</label>
+                                <input type="text" id="venta_nombre" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="text" id="venta_telefono" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Documento</label>
+                                <input type="text" id="venta_documento">
+                            </div>
+                            <div class="form-group">
+                                <label>Correo</label>
+                                <input type="email" id="venta_correo">
+                            </div>
+                            <div class="form-group">
+                                <label>Placa</label>
+                                <input type="text" id="venta_placa" class="uppercase">
+                            </div>
+                            <div class="form-group">
+                                <label>Ciudad</label>
+                                <input type="text" id="venta_ciudad">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Valor Prima</label>
+                                <input type="text" id="venta_prima" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Canal</label>
+                                <select id="venta_canal" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Directo">Directo</option>
+                                    <option value="Intermediario">Intermediario</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Fuente Original</label>
+                                <select id="venta_fuente" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Medio de Pago</label>
+                                <select id="venta_pago" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="PSE">PSE</option>
+                                    <option value="Tarjeta Crédito">Tarjeta Crédito</option>
+                                    <option value="Efectivo">Efectivo</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>N° Póliza Emitida</label>
+                                <input type="text" id="venta_poliza" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Tipo Seguro</label>
+                                <select id="venta_tipo" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Todo Riesgo">Todo Riesgo</option>
+                                    <option value="Pérdida Total">Pérdida Total</option>
+                                    <option value="Responsabilidad Civil">Responsabilidad Civil</option>
+                                    <option value="SOAT">SOAT</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row form-full-width">
+                            <div class="form-group form-full-width">
+                                <label>Observación</label>
+                                <textarea id="venta_observacion"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn btn-secondary">Limpiar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="module-content" data-view="table">
+                <div class="kpi-section" id="venta-kpi">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Total Ventas</div>
+                        <div class="kpi-value" id="venta-total">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Prima Total</div>
+                        <div class="kpi-value" id="venta-prima-total">$0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Prima Promedio</div>
+                        <div class="kpi-value" id="venta-prima-prom">$0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Mejor Agente</div>
+                        <div class="kpi-value" id="venta-mejor-agente">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Canal Top</div>
+                        <div class="kpi-value" id="venta-canal-top">-</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="filters-container">
+                        <div class="filter-group">
+                            <label>Fecha Desde</label>
+                            <input type="date" id="venta-filter-desde">
+                        </div>
+                        <div class="filter-group">
+                            <label>Fecha Hasta</label>
+                            <input type="date" id="venta-filter-hasta">
+                        </div>
+                        <div class="filter-group">
+                            <label>Agente</label>
+                            <select id="venta-filter-agente">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Canal</label>
+                            <select id="venta-filter-canal">
+                                <option value="">Todos</option>
+                                <option value="Directo">Directo</option>
+                                <option value="Intermediario">Intermediario</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" onclick="applyFilters('ventas')">Aplicar Filtros</button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table id="venta-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Agente</th>
+                                    <th>Cliente</th>
+                                    <th>Documento</th>
+                                    <th>Placa</th>
+                                    <th>Prima</th>
+                                    <th>Canal</th>
+                                    <th>Fuente</th>
+                                    <th>N° Póliza</th>
+                                    <th>Tipo</th>
+                                    <th>Medio Pago</th>
+                                    <th>Observación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="venta-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 5: CALIDAD DE LEADS -->
+        <div class="module" id="module-calidad">
+            <div class="module-tabs">
+                <button class="module-tab active" data-view="form">➕ Nuevo Registro</button>
+                <button class="module-tab" data-view="table">📋 Registros</button>
+            </div>
+
+            <div class="module-content active" data-view="form">
+                <div class="form-container">
+                    <form id="calidadForm" onsubmit="submitForm(event, 'calidad')">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha</label>
+                                <input type="date" id="calidad_fecha" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Agente</label>
+                                <select id="calidad_agente" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Fuente</label>
+                                <select id="calidad_fuente" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Base</label>
+                                <select id="calidad_base" required></select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Nombre del Cliente</label>
+                                <input type="text" id="calidad_nombre" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono</label>
+                                <input type="text" id="calidad_telefono" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Documento</label>
+                                <input type="text" id="calidad_documento">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Categoría</label>
+                                <select id="calidad_categoria" required onchange="updateSubtipificacion()">
+                                    <option value="">Seleccionar</option>
+                                    <option value="NO APTO">NO APTO</option>
+                                    <option value="NO CONTACTO">NO CONTACTO</option>
+                                    <option value="CONTACTADO - NO COTIZA">CONTACTADO - NO COTIZA</option>
+                                    <option value="POSITIVO">POSITIVO</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Sub-tipificación</label>
+                                <select id="calidad_subtipo" required></select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>¿Se intentó contactar?</label>
+                                <select id="calidad_intento" required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Intentos de contacto</label>
+                                <input type="number" id="calidad_intentos" min="0">
+                            </div>
+                        </div>
+
+                        <div class="form-row form-full-width">
+                            <div class="form-group form-full-width">
+                                <label>Observación detallada</label>
+                                <textarea id="calidad_observacion"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="reset" class="btn btn-secondary">Limpiar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="module-content" data-view="table">
+                <div class="kpi-section" id="calidad-kpi">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Total Evaluados</div>
+                        <div class="kpi-value" id="calidad-total">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">No Aptos</div>
+                        <div class="kpi-value" id="calidad-noapto">0%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">No Contacto</div>
+                        <div class="kpi-value" id="calidad-nocontacto">0%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">No Cotiza</div>
+                        <div class="kpi-value" id="calidad-nocotiza">0%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Top Razón</div>
+                        <div class="kpi-value" id="calidad-toprazon">-</div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="filters-container">
+                        <div class="filter-group">
+                            <label>Fecha Desde</label>
+                            <input type="date" id="calidad-filter-desde">
+                        </div>
+                        <div class="filter-group">
+                            <label>Fecha Hasta</label>
+                            <input type="date" id="calidad-filter-hasta">
+                        </div>
+                        <div class="filter-group">
+                            <label>Agente</label>
+                            <select id="calidad-filter-agente">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Categoría</label>
+                            <select id="calidad-filter-categoria">
+                                <option value="">Todas</option>
+                                <option value="NO APTO">NO APTO</option>
+                                <option value="NO CONTACTO">NO CONTACTO</option>
+                                <option value="CONTACTADO - NO COTIZA">CONTACTADO - NO COTIZA</option>
+                                <option value="POSITIVO">POSITIVO</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" onclick="applyFilters('calidad')">Aplicar Filtros</button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table id="calidad-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Agente</th>
+                                    <th>Fuente</th>
+                                    <th>Cliente</th>
+                                    <th>Categoría</th>
+                                    <th>Subtipo</th>
+                                    <th>Intentos</th>
+                                    <th>Observación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="calidad-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 6: DASHBOARD -->
+        <div class="module" id="module-dashboard">
+            <div class="kpi-section" id="dashboard-kpi">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Registros</div>
+                    <div class="kpi-value" id="dashboard-total-registros">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Ventas</div>
+                    <div class="kpi-value" id="dashboard-total-ventas">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Prima Total</div>
+                    <div class="kpi-value" id="dashboard-prima-total">$0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">% Contactabilidad</div>
+                    <div class="kpi-value" id="dashboard-contactabilidad">0%</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">% Efectividad</div>
+                    <div class="kpi-value" id="dashboard-efectividad">0%</div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="chart-card">
+                    <div class="chart-title">Registros vs Ventas por Mes</div>
+                    <canvas id="chartRegistrosVentas"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Distribución por Tipificación</div>
+                    <canvas id="chartTipificacion"></canvas>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="chart-card">
+                    <div class="chart-title">Ventas por Agente</div>
+                    <canvas id="chartVentasAgente"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Tendencia de Renovaciones</div>
+                    <canvas id="chartRenovaciones"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 7: CONFIGURACIÓN -->
+        <div class="module" id="module-config">
+            <div class="config-section">
+                <div class="config-title">Configuración de API</div>
+                <p class="instruction-text">Configure la URL del Google Apps Script Web App para conectar con sus hojas de cálculo.</p>
+                <div class="form-group" style="margin: 20px 0;">
+                    <label>URL del Web App</label>
+                    <input type="text" id="apiUrl" placeholder="https://script.google.com/macros/d/{SCRIPT_ID}/userweb?v=1" style="margin-top: 8px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; font-size: 14px;">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="saveApiUrl()">Guardar</button>
+                    <button class="btn btn-secondary" onclick="testConnection()">Probar Conexión</button>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <div class="config-title">Código Google Apps Script</div>
+                <p class="instruction-text">Copia este código en tu Google Apps Script (apps-script.json y Code.gs):</p>
+
+                <div style="margin-top: 15px;">
+                    <strong>Code.gs:</strong>
+                    <div class="code-block">function doGet() {
+  return HtmlService.createHtmlOutput('OK');
+}
+
+function doPost(e) {
+  const action = e.parameter.action;
+  const sheetName = e.parameter.sheet;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+
+  try {
+    if (action === 'ping') {
+      return ContentService.createTextOutput('OK')
+        .setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    if (action === 'add') {
+      const data = JSON.parse(e.parameter.data);
+      sheet.appendRow(data);
+      return ContentService.createTextOutput(JSON.stringify({success: true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getAll') {
+      const range = sheet.getDataRange();
+      const values = range.getValues();
+      return ContentService.createTextOutput(JSON.stringify(values))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'delete') {
+      const id = parseInt(e.parameter.id);
+      sheet.deleteRow(id);
+      return ContentService.createTextOutput(JSON.stringify({success: true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({error: err.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function testConnection() {
+  return 'Connection OK';
+}</div>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <div class="config-title">Estructura de Hojas Requeridas</div>
+                <p class="instruction-text">Crea las siguientes hojas en tu Google Sheet con estos nombres exactos:</p>
+                <ul style="margin: 15px 0; padding-left: 20px;">
+                    <li><strong>Inbound_Chatbot</strong> - Registros de Inbound y Chatbot</li>
+                    <li><strong>Pauta_Otros</strong> - Registros de Pauta y Otros medios</li>
+                    <li><strong>Renovaciones</strong> - Gestión de renovaciones</li>
+                    <li><strong>Ventas</strong> - Registros de ventas realizadas</li>
+                    <li><strong>Calidad_Leads</strong> - Evaluación de calidad de leads</li>
+                </ul>
+            </div>
+
+            <div class="config-section">
+                <div class="config-title">Instrucciones de Implementación</div>
+                <div class="instruction-text">
+                    <ol style="margin: 10px 0; padding-left: 20px;">
+                        <li>Crea un nuevo Google Apps Script en <a href="https://script.google.com" target="_blank" style="color: #003399; text-decoration: underline;">script.google.com</a></li>
+                        <li>Copia el código de Code.gs proporcionado arriba</li>
+                        <li>Haz clic en "Deploy" → "New Deployment" → Tipo: "Web app"</li>
+                        <li>Selecciona "Execute as" con tu cuenta y "Allow anyone" para acceso</li>
+                        <li>Copia la URL del Web App generada</li>
+                        <li>Pégala en el campo "URL del Web App" arriba y presiona "Guardar"</li>
+                        <li>Prueba la conexión haciendo clic en "Probar Conexión"</li>
+                        <li>Crea las hojas requeridas en tu Google Sheet</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Configuration
+        const AGENTS = [
+            'Daniela Chacon',
+            'Johana Soto',
+            'Alejandra Londoño',
+            'Ana Maria Robledo',
+            'Paola Rodriguez',
+            'Marlen Chacon',
+            'Yeison Navas',
+            'Diana Rodriguez'
+        ];
+
+        const TIPIFICACIONES = {
+            'NO APTO': [
+                'Cliente Ya Tiene Seguro Con Zurich Intermediario',
+                'Cliente Ya Tiene Seguro Con Zurich Directo',
+                'Esta Asesorado Por Un Asesor Zurich',
+                'Es Un Intermediario De Zurich',
+                'Registro Duplicado',
+                'Servicio al cliente'
+            ],
+            'NO CONTACTO': [
+                'Cliente cuelga - Llamada caida',
+                'Datos No Corresponde (Numero De Telefono - Rpl)',
+                'No contacto - sin datos',
+                'No contesta'
+            ],
+            'CONTACTADO - NO COTIZA': [
+                'Interesado en otro producto',
+                'Contacto Con Tercero',
+                'No Esta Interesado En Comprar',
+                'Interesado en SOAT',
+                'Volver A Llamar',
+                'Vendio El Vehiculo',
+                'Cliente Informa Que No Se Registro En La Pagina',
+                'Mala Experiencia con Zurich',
+                'No asegurable por MARCA',
+                'no asegurable por POLITICAS',
+                'No Venta',
+                'Ya Lo Compro Con Otra Compania',
+                'Se decidió Con Otra Compania',
+                'Solo Se Encuentra Cotizando',
+                'Precio Con Otra Aseguradora'
+            ],
+            'POSITIVO': [
+                'En proceso',
+                'Pendiente inspeccion',
+                'Venta'
+            ]
+        };
+
+        const SOURCES = [
+            'Pauta',
+            'Pauta Max',
+            'WhatsApp Pauta',
+            'Organico',
+            'WhatsApp Organico',
+            'Jira Organico',
+            'Referidos',
+            'Santander',
+            'Contigo Intermediarios',
+            'Motos Zurich',
+            'Inbound',
+            'Chatbot',
+            'Otros'
+        ];
+
+        const PAUTA_SOURCES = [
+            'Pauta',
+            'Pauta Max',
+            'WhatsApp Pauta',
+            'Organico',
+            'WhatsApp Organico',
+            'Jira Organico',
+            'Referidos',
+            'Santander',
+            'Contigo Intermediarios',
+            'Motos Zurich'
+        ];
+
+        // State
+        let currentModule = 'inbound';
+        let deleteTarget = null;
+        let apiUrl = localStorage.getItem('zurich_api_url') || '';
+        let allData = {};
+        let _jsonpCounter = 0;
+
+        // ═══════ COMUNICACIÓN CON GOOGLE APPS SCRIPT ═══════
+        // Usa fetch primero (funciona desde HTTPS), si falla usa JSONP (funciona desde file://)
+        async function apiRequest(params) {
+            if (!apiUrl) throw new Error('No hay URL configurada');
+            const qs = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
+            try {
+                const res = await fetch(apiUrl + '?' + qs, { redirect: 'follow' });
+                const text = await res.text();
+                return JSON.parse(text);
+            } catch(e) {
+                return jsonpRequest(params);
+            }
+        }
+
+        function jsonpRequest(params) {
+            return new Promise((resolve, reject) => {
+                if (!apiUrl) { reject(new Error('No hay URL configurada')); return; }
+                const callbackName = '_jsonpCb_' + (++_jsonpCounter) + '_' + Date.now();
+                const timeout = setTimeout(() => {
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    reject(new Error('Tiempo de espera agotado'));
+                }, 15000);
+                window[callbackName] = function(data) {
+                    clearTimeout(timeout);
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    resolve(data);
+                };
+                const qs = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
+                const script = document.createElement('script');
+                script.src = apiUrl + '?' + qs + '&callback=' + callbackName;
+                script.onerror = function() {
+                    clearTimeout(timeout);
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    reject(new Error('Error de red'));
+                };
+                document.body.appendChild(script);
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            populateAgentSelects();
+            populateTipificacionSelects();
+            populateSourceSelects();
+            setupNavigation();
+            setupModuleTabs();
+            setupFormListeners();
+            setDefaultDates();
+            loadApiUrl();
+            checkConnection();
+            setInterval(checkConnection, 30000); // Check every 30 seconds
+        }
+
+        // API URL Management
+        function loadApiUrl() {
+            const apiUrlInput = document.getElementById('apiUrl');
+            if (apiUrl) {
+                apiUrlInput.value = apiUrl;
+            }
+        }
+
+        function saveApiUrl() {
+            const apiUrlInput = document.getElementById('apiUrl');
+            apiUrl = apiUrlInput.value.trim();
+            if (!apiUrl) {
+                showToast('Por favor ingrese una URL válida', 'error');
+                return;
+            }
+            localStorage.setItem('zurich_api_url', apiUrl);
+            showToast('URL guardada exitosamente', 'success');
+        }
+
+        async function testConnection() {
+            if (!apiUrl) {
+                showToast('Por favor configure la URL del Web App primero', 'warning');
+                return;
+            }
+            try {
+                const json = await apiRequest({ action: 'ping' });
+                if (json.status === 'ok') {
+                    showToast('Conexión exitosa con Google Sheets', 'success');
+                    updateConnectionStatus(true);
+                } else {
+                    showToast('Error: ' + (json.message || 'Respuesta inesperada'), 'error');
+                    updateConnectionStatus(false);
+                }
+            } catch(err) {
+                showToast('Error al probar conexión: ' + err.message, 'error');
+                updateConnectionStatus(false);
+            }
+        }
+
+        async function checkConnection() {
+            if (!apiUrl) { updateConnectionStatus(false); return; }
+            try {
+                const json = await apiRequest({ action: 'ping' });
+                updateConnectionStatus(json.status === 'ok');
+            } catch(err) {
+                updateConnectionStatus(false);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                dot.classList.add('connected');
+                status.textContent = 'Conectado a Google Sheets';
+            } else {
+                dot.classList.remove('connected');
+                status.textContent = 'Desconectado';
+            }
+        }
+
+        // Population Functions
+        function populateAgentSelects() {
+            const selects = document.querySelectorAll('[id$="_agente"]');
+            selects.forEach(select => {
+                AGENTS.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent;
+                    option.textContent = agent;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        function populateTipificacionSelects() {
+            const inboundSelect = document.getElementById('inbound_tipificacion');
+            const pautaSelect = document.getElementById('pauta_tipificacion');
+            populateTipificacionSelect(inboundSelect);
+            populateTipificacionSelect(pautaSelect);
+        }
+
+        function populateTipificacionSelect(select) {
+            Object.keys(TIPIFICACIONES).forEach(group => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = group;
+                TIPIFICACIONES[group].forEach(tip => {
+                    const option = document.createElement('option');
+                    option.value = tip;
+                    option.textContent = tip;
+                    optgroup.appendChild(option);
+                });
+                select.appendChild(optgroup);
+            });
+        }
+
+        function populateSourceSelects() {
+            // Ventas sources (all)
+            const ventaSourceSelect = document.getElementById('venta_fuente');
+            SOURCES.forEach(source => {
+                const option = document.createElement('option');
+                option.value = source;
+                option.textContent = source;
+                ventaSourceSelect.appendChild(option);
+            });
+
+            // Pauta Base
+            const pautaBaseSelect = document.getElementById('pauta_base');
+            PAUTA_SOURCES.forEach(source => {
+                const option = document.createElement('option');
+                option.value = source;
+                option.textContent = source;
+                pautaBaseSelect.appendChild(option);
+            });
+
+            // Calidad Fuente y Base
+            const calidadFuenteSelect = document.getElementById('calidad_fuente');
+            const calidadBaseSelect = document.getElementById('calidad_base');
+            SOURCES.forEach(source => {
+                const option1 = document.createElement('option');
+                option1.value = source;
+                option1.textContent = source;
+                calidadFuenteSelect.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = source;
+                option2.textContent = source;
+                calidadBaseSelect.appendChild(option2);
+            });
+        }
+
+        function updateSubtipificacion() {
+            const categoria = document.getElementById('calidad_categoria').value;
+            const subtipo = document.getElementById('calidad_subtipo');
+            subtipo.innerHTML = '<option value="">Seleccionar</option>';
+
+            if (categoria && TIPIFICACIONES[categoria]) {
+                TIPIFICACIONES[categoria].forEach(tip => {
+                    const option = document.createElement('option');
+                    option.value = tip;
+                    option.textContent = tip;
+                    subtipo.appendChild(option);
+                });
+            }
+        }
+
+        function toggleRazonNoRenovacion() {
+            const renovado = document.getElementById('renov_renovado').value;
+            const group = document.getElementById('razonNoRenovacionGroup');
+            if (renovado === 'No') {
+                group.style.display = 'block';
+            } else {
+                group.style.display = 'none';
+            }
+        }
+
+        // Navigation
+        function setupNavigation() {
+            const navTabs = document.querySelectorAll('.nav-tab');
+            navTabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const moduleId = e.target.dataset.module;
+                    switchModule(moduleId);
+                });
+            });
+        }
+
+        function switchModule(moduleId) {
+            // Update active nav tab
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-module="${moduleId}"]`).classList.add('active');
+
+            // Update active module
+            document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+            document.getElementById(`module-${moduleId}`).classList.add('active');
+
+            currentModule = moduleId;
+
+            // Load data if it's a table view
+            if (moduleId === 'dashboard') {
+                setTimeout(() => loadDashboardData(), 100);
+            } else if (moduleId !== 'config') {
+                const activeView = document.querySelector(`#module-${moduleId} .module-content.active`);
+                if (activeView && activeView.dataset.view === 'table') {
+                    setTimeout(() => loadTableData(moduleId), 100);
+                }
+            }
+        }
+
+        function setupModuleTabs() {
+            document.querySelectorAll('.module-tabs').forEach(tabs => {
+                const moduleContent = tabs.closest('.module');
+                tabs.querySelectorAll('.module-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        const view = e.target.dataset.view;
+                        const contents = moduleContent.querySelectorAll('.module-content');
+                        const moduleTabs = tabs.querySelectorAll('.module-tab');
+
+                        contents.forEach(c => c.classList.remove('active'));
+                        moduleTabs.forEach(t => t.classList.remove('active'));
+
+                        moduleContent.querySelector(`.module-content[data-view="${view}"]`).classList.add('active');
+                        e.target.classList.add('active');
+
+                        // Load table data when switching to table view
+                        if (view === 'table') {
+                            const moduleId = moduleContent.id.replace('module-', '');
+                            setTimeout(() => loadTableData(moduleId), 100);
+                        }
+                    });
+                });
+            });
+        }
+
+        function setupFormListeners() {
+            // Uppercase placa fields
+            document.querySelectorAll('.uppercase').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                });
+            });
+        }
+
+        function setDefaultDates() {
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelectorAll('[id$="_fecha"], [id$="_vencimiento"]').forEach(input => {
+                if (!input.value) {
+                    input.value = today;
+                }
+            });
+        }
+
+        // Form Submission
+        async function submitForm(e, module) {
+            e.preventDefault();
+
+            if (!apiUrl) {
+                showToast('Por favor configure la URL del Web App', 'warning');
+                return;
+            }
+
+            const formData = getFormData(module);
+            const sheetName = getSheetName(module);
+
+            try {
+                const result = await apiRequest({
+                    action: 'add',
+                    sheet: sheetName,
+                    data: JSON.stringify(formData)
+                });
+
+                if (result.status === 'ok') {
+                    showToast('Registro guardado exitosamente', 'success');
+                    document.getElementById(`${module}Form`).reset();
+                    setDefaultDates();
+                    loadTableData(module);
+                } else {
+                    showToast('Error al guardar: ' + (result.message || 'Error desconocido'), 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
+        function getFormData(module) {
+            const data = {};
+            if (module === 'inbound') {
+                data.fecha = document.getElementById('inbound_fecha').value;
+                data.agente = document.getElementById('inbound_agente').value;
+                data.nombre = document.getElementById('inbound_nombre').value;
+                data.telefono = document.getElementById('inbound_telefono').value;
+                data.documento = document.getElementById('inbound_documento').value;
+                data.correo = document.getElementById('inbound_correo').value;
+                data.placa = document.getElementById('inbound_placa').value;
+                data.ciudad = document.getElementById('inbound_ciudad').value;
+                data.valor = document.getElementById('inbound_valor').value;
+                data.cotizacion = document.getElementById('inbound_cotizacion').value;
+                data.medio = document.getElementById('inbound_medio').value;
+                data.tipificacion = document.getElementById('inbound_tipificacion').value;
+                data.base = document.getElementById('inbound_base').value;
+                data.observacion = document.getElementById('inbound_observacion').value;
+            } else if (module === 'pauta') {
+                data.fecha = document.getElementById('pauta_fecha').value;
+                data.agente = document.getElementById('pauta_agente').value;
+                data.nombre = document.getElementById('pauta_nombre').value;
+                data.telefono = document.getElementById('pauta_telefono').value;
+                data.documento = document.getElementById('pauta_documento').value;
+                data.correo = document.getElementById('pauta_correo').value;
+                data.placa = document.getElementById('pauta_placa').value;
+                data.ciudad = document.getElementById('pauta_ciudad').value;
+                data.valor = document.getElementById('pauta_valor').value;
+                data.cotizacion = document.getElementById('pauta_cotizacion').value;
+                data.medio = document.getElementById('pauta_medio').value;
+                data.base = document.getElementById('pauta_base').value;
+                data.tipificacion = document.getElementById('pauta_tipificacion').value;
+                data.campana = document.getElementById('pauta_campana').value;
+                data.observacion = document.getElementById('pauta_observacion').value;
+            } else if (module === 'renovaciones') {
+                data.fecha = document.getElementById('renov_fecha').value;
+                data.agente = document.getElementById('renov_agente').value;
+                data.nombre = document.getElementById('renov_nombre').value;
+                data.telefono = document.getElementById('renov_telefono').value;
+                data.documento = document.getElementById('renov_documento').value;
+                data.poliza = document.getElementById('renov_poliza').value;
+                data.vencimiento = document.getElementById('renov_vencimiento').value;
+                data.placa = document.getElementById('renov_placa').value;
+                data.valor_actual = document.getElementById('renov_valor_actual').value;
+                data.valor_renov = document.getElementById('renov_valor_renov').value;
+                data.renovado = document.getElementById('renov_renovado').value;
+                data.medio = document.getElementById('renov_medio').value;
+                data.razon = document.getElementById('renov_razon').value;
+                data.observacion = document.getElementById('renov_observacion').value;
+            } else if (module === 'ventas') {
+                data.fecha = document.getElementById('venta_fecha').value;
+                data.agente = document.getElementById('venta_agente').value;
+                data.nombre = document.getElementById('venta_nombre').value;
+                data.telefono = document.getElementById('venta_telefono').value;
+                data.documento = document.getElementById('venta_documento').value;
+                data.correo = document.getElementById('venta_correo').value;
+                data.placa = document.getElementById('venta_placa').value;
+                data.ciudad = document.getElementById('venta_ciudad').value;
+                data.prima = document.getElementById('venta_prima').value;
+                data.canal = document.getElementById('venta_canal').value;
+                data.fuente = document.getElementById('venta_fuente').value;
+                data.pago = document.getElementById('venta_pago').value;
+                data.poliza = document.getElementById('venta_poliza').value;
+                data.tipo = document.getElementById('venta_tipo').value;
+                data.observacion = document.getElementById('venta_observacion').value;
+            } else if (module === 'calidad') {
+                data.fecha = document.getElementById('calidad_fecha').value;
+                data.agente = document.getElementById('calidad_agente').value;
+                data.fuente = document.getElementById('calidad_fuente').value;
+                data.base = document.getElementById('calidad_base').value;
+                data.nombre = document.getElementById('calidad_nombre').value;
+                data.telefono = document.getElementById('calidad_telefono').value;
+                data.documento = document.getElementById('calidad_documento').value;
+                data.categoria = document.getElementById('calidad_categoria').value;
+                data.subtipo = document.getElementById('calidad_subtipo').value;
+                data.intento = document.getElementById('calidad_intento').value;
+                data.intentos = document.getElementById('calidad_intentos').value;
+                data.observacion = document.getElementById('calidad_observacion').value;
+            }
+            return data;
+        }
+
+        function getSheetName(module) {
+            const mapping = {
+                'inbound': 'Inbound_Chatbot',
+                'pauta': 'Pauta_Otros',
+                'renovaciones': 'Renovaciones',
+                'ventas': 'Ventas',
+                'calidad': 'Calidad_Leads'
+            };
+            return mapping[module];
+        }
+
+        // Table Data Loading & Display
+        async function loadTableData(module) {
+            if (!apiUrl) {
+                showToast('Por favor configure la URL del Web App', 'warning');
+                return;
+            }
+
+            const sheetName = getSheetName(module);
+
+            try {
+                const result = await apiRequest({
+                    action: 'getAll',
+                    sheet: sheetName
+                });
+
+                const rawData = result.data || result;
+                // Normalize: convert objects to arrays for display
+                const data = Array.isArray(rawData) ? rawData.map(row => {
+                    if (row && typeof row === 'object' && !Array.isArray(row)) {
+                        return Object.values(row); // [ID, FECHA, AGENTE, ...]
+                    }
+                    return row;
+                }) : rawData;
+                allData[module] = data;
+                displayTableData(module, data);
+                updateKPIs(module, data);
+            } catch (err) {
+                console.error('Error loading data:', err);
+                showToast('Error al cargar datos', 'error');
+            }
+        }
+
+        function displayTableData(module, data) {
+            const tbody = document.getElementById(`${module === 'renovaciones' ? 'renov' : module === 'ventas' ? 'venta' : module === 'calidad' ? 'calidad' : module}-tbody`);
+            tbody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="15" style="text-align: center; color: #999; padding: 30px;">No hay registros</td></tr>';
+                return;
+            }
+
+            data.forEach((row) => {
+                const tr = document.createElement('tr');
+                const realId = row[0]; // Real ID from sheet
+
+                let rowHtml = `<td>${realId}</td>`;
+
+                // row[0]=ID, row[1]=FECHA, row[2]=AGENTE, etc.
+                if (module === 'inbound') {
+                    // FECHA, AGENTE, NOMBRE, TELEFONO, DOCUMENTO, CORREO, PLACA, CIUDAD, VALOR, COTIZACION, MEDIO, TIPIFICACION, BASE, OBSERVACION
+                    for (let i = 1; i <= 14; i++) rowHtml += `<td>${row[i] || ''}</td>`;
+                } else if (module === 'pauta') {
+                    // FECHA, AGENTE, NOMBRE, TELEFONO, DOCUMENTO, CORREO, PLACA, CIUDAD, VALOR, COTIZACION, MEDIO, TIPIFICACION, BASE, CAMPANA, OBSERVACION
+                    for (let i = 1; i <= 15; i++) rowHtml += `<td>${row[i] || ''}</td>`;
+                } else if (module === 'renovaciones') {
+                    // FECHA, AGENTE, NOMBRE, TELEFONO, DOCUMENTO, NUM_POLIZA, FECHA_VENC, PLACA, VALOR_ACTUAL, VALOR_RENOV, SE_RENOVO, MEDIO, RAZON, OBSERVACION
+                    for (let i = 1; i <= 14; i++) rowHtml += `<td>${row[i] || ''}</td>`;
+                } else if (module === 'ventas') {
+                    // FECHA, AGENTE, NOMBRE, TELEFONO, DOCUMENTO, CORREO, PLACA, CIUDAD, VALOR_PRIMA, CANAL, FUENTE, MEDIO_PAGO, NUM_POLIZA, TIPO_SEGURO, OBSERVACION
+                    for (let i = 1; i <= 15; i++) rowHtml += `<td>${row[i] || ''}</td>`;
+                } else if (module === 'calidad') {
+                    // FECHA, AGENTE, FUENTE, NOMBRE, TELEFONO, DOCUMENTO, CATEGORIA, SUBTIPO, INTENTO, NUM_INTENTOS, OBSERVACION
+                    for (let i = 1; i <= 11; i++) rowHtml += `<td>${row[i] || ''}</td>`;
+                }
+
+                rowHtml += `
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-small btn-danger" onclick="openDeleteModal('${module}', ${realId})">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+
+                tr.innerHTML = rowHtml;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Column indexes per module (with ID at index 0)
+        // Inbound: 0=ID, 1=FECHA, 2=AGENTE, ..., 12=TIPIFICACION, 13=BASE, 14=OBSERVACION
+        // Pauta: 0=ID, 1=FECHA, 2=AGENTE, ..., 12=TIPIFICACION, 13=BASE, 14=CAMPANA, 15=OBSERVACION
+        // Renovaciones: 0=ID, ..., 11=SE_RENOVO, 12=MEDIO, 13=RAZON, 14=OBSERVACION
+        // Ventas: 0=ID, 1=FECHA, 2=AGENTE, ..., 9=VALOR_PRIMA, 10=CANAL, 11=FUENTE, ...
+        // Calidad: 0=ID, 1=FECHA, 2=AGENTE, 3=FUENTE, ..., 7=CATEGORIA, 8=SUBTIPO, ...
+
+        function updateKPIs(module, data) {
+            if (!data || data.length === 0) return;
+            const rows = data;
+
+            if (module === 'inbound') {
+                const total = rows.length;
+                const proceso = rows.filter(r => r[12] === 'En proceso').length;
+                const nocontesta = rows.filter(r => r[12] === 'No contesta' || r[12] === 'No contacto - sin datos').length;
+                const ventas = rows.filter(r => r[12] === 'Venta').length;
+                const interesado = rows.filter(r => r[12] === 'Interesado en otro producto' || r[12] === 'Interesado en SOAT').length;
+
+                document.getElementById('inbound-total').textContent = total;
+                document.getElementById('inbound-proceso').textContent = proceso;
+                document.getElementById('inbound-nocontesta').textContent = nocontesta;
+                document.getElementById('inbound-ventas').textContent = ventas;
+                document.getElementById('inbound-interesado').textContent = interesado;
+            } else if (module === 'renovaciones') {
+                const total = rows.length;
+                const renovadas = rows.filter(r => r[11] === 'Sí').length;
+                const proceso = rows.filter(r => r[11] === 'En proceso').length;
+                const norenov = rows.filter(r => r[11] === 'No').length;
+                const porcentaje = total > 0 ? Math.round((renovadas / total) * 100) : 0;
+
+                document.getElementById('renov-total').textContent = total;
+                document.getElementById('renov-renovadas').textContent = renovadas;
+                document.getElementById('renov-proceso').textContent = proceso;
+                document.getElementById('renov-norenov').textContent = norenov;
+                document.getElementById('renov-porcentaje').textContent = porcentaje + '%';
+            } else if (module === 'ventas') {
+                const total = rows.length;
+                let totalPrima = 0;
+                rows.forEach(r => {
+                    const val = parseFloat(String(r[9]).replace(/\./g, '')) || 0;
+                    totalPrima += val;
+                });
+                const promedio = total > 0 ? totalPrima / total : 0;
+
+                const agenteCounts = {};
+                rows.forEach(r => {
+                    const agent = r[2] || 'Sin asignar';
+                    agenteCounts[agent] = (agenteCounts[agent] || 0) + 1;
+                });
+                const mejorAgente = Object.keys(agenteCounts).length ? Object.keys(agenteCounts).reduce((a, b) => agenteCounts[a] > agenteCounts[b] ? a : b) : '-';
+
+                const canalCounts = {};
+                rows.forEach(r => {
+                    const canal = r[10] || 'Sin canal';
+                    canalCounts[canal] = (canalCounts[canal] || 0) + 1;
+                });
+                const canalTop = Object.keys(canalCounts).length ? Object.keys(canalCounts).reduce((a, b) => canalCounts[a] > canalCounts[b] ? a : b) : '-';
+
+                document.getElementById('venta-total').textContent = total;
+                document.getElementById('venta-prima-total').textContent = '$' + totalPrima.toLocaleString('es-CO', {maximumFractionDigits: 0});
+                document.getElementById('venta-prima-prom').textContent = '$' + promedio.toLocaleString('es-CO', {maximumFractionDigits: 0});
+                document.getElementById('venta-mejor-agente').textContent = mejorAgente;
+                document.getElementById('venta-canal-top').textContent = canalTop;
+            } else if (module === 'calidad') {
+                const total = rows.length;
+                const noApto = rows.filter(r => r[7] === 'NO APTO').length;
+                const noContacto = rows.filter(r => r[7] === 'NO CONTACTO').length;
+                const noCotiza = rows.filter(r => r[7] === 'NO COTIZA').length;
+
+                const noaptoPercent = total > 0 ? Math.round((noApto / total) * 100) : 0;
+                const nocontactoPercent = total > 0 ? Math.round((noContacto / total) * 100) : 0;
+                const nocotizaPercent = total > 0 ? Math.round((noCotiza / total) * 100) : 0;
+
+                const subtipos = {};
+                rows.forEach(r => {
+                    const sub = r[8] || 'Sin subtipo';
+                    subtipos[sub] = (subtipos[sub] || 0) + 1;
+                });
+                const topRazon = Object.keys(subtipos).length ? Object.keys(subtipos).reduce((a, b) => subtipos[a] > subtipos[b] ? a : b) : '-';
+
+                document.getElementById('calidad-total').textContent = total;
+                document.getElementById('calidad-noapto').textContent = noaptoPercent + '%';
+                document.getElementById('calidad-nocontacto').textContent = nocontactoPercent + '%';
+                document.getElementById('calidad-nocotiza').textContent = nocotizaPercent + '%';
+                document.getElementById('calidad-toprazon').textContent = topRazon;
+            }
+        }
+
+        async function loadDashboardData() {
+            if (!apiUrl) return;
+
+            try {
+                // Load all module data using apiRequest (GET + JSONP fallback)
+                const [inboundRes, pautaRes, ventasRes, renovRes, calidadRes] = await Promise.all([
+                    apiRequest({action: 'getAll', sheet: 'Inbound_Chatbot'}),
+                    apiRequest({action: 'getAll', sheet: 'Pauta_Otros'}),
+                    apiRequest({action: 'getAll', sheet: 'Ventas'}),
+                    apiRequest({action: 'getAll', sheet: 'Renovaciones'}),
+                    apiRequest({action: 'getAll', sheet: 'Calidad_Leads'})
+                ]);
+
+                // Extract and normalize data arrays (convert objects to arrays, skip ID)
+                function normalizeRows(res) {
+                    const raw = res.data || res;
+                    if (!Array.isArray(raw)) return [];
+                    return raw.map(row => {
+                        if (row && typeof row === 'object' && !Array.isArray(row)) {
+                            return Object.values(row).slice(1); // skip ID
+                        }
+                        return row;
+                    });
+                }
+
+                // Calculate KPIs
+                const allInbound = normalizeRows(inboundRes);
+                const allPauta = normalizeRows(pautaRes);
+                const allVentas = normalizeRows(ventasRes);
+                const allRenov = normalizeRows(renovRes);
+
+                const totalRegistros = allInbound.length + allPauta.length;
+                const totalVentas = allVentas.length;
+                const totalPrima = allVentas.reduce((sum, r) => sum + (parseFloat(String(r[8]).replace(/\./g, '')) || 0), 0);
+                const totalContactados = allInbound.filter(r => r[11] !== 'No contesta' && r[11] !== 'No contacto - sin datos').length;
+                const contactabilidad = totalRegistros > 0 ? Math.round((totalContactados / totalRegistros) * 100) : 0;
+                const efectividad = totalRegistros > 0 ? Math.round((totalVentas / totalRegistros) * 100) : 0;
+
+                document.getElementById('dashboard-total-registros').textContent = totalRegistros;
+                document.getElementById('dashboard-total-ventas').textContent = totalVentas;
+                document.getElementById('dashboard-prima-total').textContent = '$' + totalPrima.toLocaleString('es-CO', {maximumFractionDigits: 0});
+                document.getElementById('dashboard-contactabilidad').textContent = contactabilidad + '%';
+                document.getElementById('dashboard-efectividad').textContent = efectividad + '%';
+
+                // Create charts
+                createDashboardCharts(allInbound, allPauta, allVentas, allRenov);
+            } catch (err) {
+                console.error('Error loading dashboard:', err);
+            }
+        }
+
+        function createDashboardCharts(inbound, pauta, ventas, renov) {
+            // Destroy existing charts
+            Chart.helpers.each(Chart.instances, instance => {
+                instance.destroy();
+            });
+
+            // Chart 1: Registros vs Ventas por mes
+            const monthMap = {};
+            [...inbound, ...pauta].forEach(r => {
+                const month = r[0] ? r[0].substring(0, 7) : '';
+                monthMap[month] = (monthMap[month] || 0) + 1;
+            });
+            const ventasMonthMap = {};
+            ventas.forEach(r => {
+                const month = r[0] ? r[0].substring(0, 7) : '';
+                ventasMonthMap[month] = (ventasMonthMap[month] || 0) + 1;
+            });
+
+            const months = Object.keys(monthMap).sort();
+            const registrosValues = months.map(m => monthMap[m] || 0);
+            const ventasValues = months.map(m => ventasMonthMap[m] || 0);
+
+            const ctx1 = document.getElementById('chartRegistrosVentas');
+            if (ctx1) {
+                new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: months.length ? months : ['Sin datos'],
+                        datasets: [
+                            {
+                                label: 'Registros',
+                                data: registrosValues.length ? registrosValues : [0],
+                                backgroundColor: '#2167AE',
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Ventas',
+                                data: ventasValues.length ? ventasValues : [0],
+                                backgroundColor: '#4caf50',
+                                borderRadius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Chart 2: Distribución por tipificación
+            const tipMap = {};
+            [...inbound, ...pauta].forEach(r => {
+                const tip = r[11] || 'Sin clasificar';
+                tipMap[tip] = (tipMap[tip] || 0) + 1;
+            });
+
+            const ctx2 = document.getElementById('chartTipificacion');
+            if (ctx2) {
+                new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(tipMap).length ? Object.keys(tipMap) : ['Sin datos'],
+                        datasets: [{
+                            data: Object.values(tipMap).length ? Object.values(tipMap) : [0],
+                            backgroundColor: ['#003399', '#2167AE', '#248BCC', '#E8F4FD', '#4caf50', '#ff9800']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'right' }
+                        }
+                    }
+                });
+            }
+
+            // Chart 3: Ventas por agente
+            const agentMap = {};
+            ventas.forEach(r => {
+                const agent = r[1] || 'Sin asignar';
+                agentMap[agent] = (agentMap[agent] || 0) + 1;
+            });
+
+            const ctx3 = document.getElementById('chartVentasAgente');
+            if (ctx3) {
+                new Chart(ctx3, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(agentMap).length ? Object.keys(agentMap) : ['Sin datos'],
+                        datasets: [{
+                            label: 'Ventas',
+                            data: Object.values(agentMap).length ? Object.values(agentMap) : [0],
+                            backgroundColor: '#248BCC',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Chart 4: Tendencia de renovaciones
+            const renovMonthMap = {};
+            renov.forEach(r => {
+                const month = r[0] ? r[0].substring(0, 7) : '';
+                if (r[10] === 'Sí') {
+                    renovMonthMap[month] = (renovMonthMap[month] || 0) + 1;
+                }
+            });
+
+            const renovMonths = Object.keys(renovMonthMap).sort();
+            const renovValues = renovMonths.map(m => renovMonthMap[m] || 0);
+
+            const ctx4 = document.getElementById('chartRenovaciones');
+            if (ctx4) {
+                new Chart(ctx4, {
+                    type: 'line',
+                    data: {
+                        labels: renovMonths.length ? renovMonths : ['Sin datos'],
+                        datasets: [{
+                            label: 'Renovaciones',
+                            data: renovValues.length ? renovValues : [0],
+                            borderColor: '#003399',
+                            backgroundColor: 'rgba(0, 51, 153, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: true }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function applyFilters(module) {
+            // Placeholder for filter implementation
+            showToast('Filtros aplicados', 'success');
+        }
+
+        // Delete Management
+        function openDeleteModal(module, id) {
+            deleteTarget = { module, id };
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            deleteTarget = null;
+        }
+
+        async function confirmDelete() {
+            if (!deleteTarget || !apiUrl) return;
+
+            const { module, id } = deleteTarget;
+            const sheetName = getSheetName(module);
+
+            try {
+                const result = await apiRequest({
+                    action: 'delete',
+                    sheet: sheetName,
+                    id: id
+                });
+
+                if (result.status === 'ok') {
+                    showToast('Registro eliminado exitosamente', 'success');
+                    loadTableData(module);
+                } else {
+                    showToast('Error al eliminar: ' + (result.message || 'Error desconocido'), 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+
+            closeDeleteModal();
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

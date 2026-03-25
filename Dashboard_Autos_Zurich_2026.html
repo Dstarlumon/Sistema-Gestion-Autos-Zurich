@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zurich Seguros | Dashboard Gestión Autos 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --zurich-blue: #003399;
+  --zurich-dark: #02296A;
+  --zurich-mid: #2167AE;
+  --zurich-light: #248BCC;
+  --zurich-sky: #E8F4FD;
+  --bg: #F4F6F9;
+  --card: #FFFFFF;
+  --border: #DEE2E8;
+  --text: #1A1F36;
+  --text-sec: #6B7280;
+  --green: #059669;
+  --green-bg: #ECFDF5;
+  --red: #DC2626;
+  --red-bg: #FEF2F2;
+  --orange: #D97706;
+  --orange-bg: #FFFBEB;
+  --yellow: #CA8A04;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* TOP NAV */
+.topbar { background: linear-gradient(135deg, var(--zurich-dark), var(--zurich-blue)); padding:0.8rem 2rem; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.topbar h1 { color:#fff; font-size:1.1rem; font-weight:600; letter-spacing:0.3px; }
+.topbar .subtitle { color:rgba(255,255,255,0.7); font-size:0.8rem; margin-left:0.8rem; }
+
+/* WIZARD STEPPER */
+.stepper { background:#fff; border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; gap:0; overflow-x:auto; }
+.step { display:flex; align-items:center; cursor:pointer; white-space:nowrap; }
+.step-num { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; border:2px solid var(--border); color:var(--text-sec); background:#fff; transition:all 0.3s; flex-shrink:0; }
+.step.active .step-num, .step.completed .step-num { background:var(--zurich-blue); border-color:var(--zurich-blue); color:#fff; }
+.step.completed .step-num { background:var(--green); border-color:var(--green); }
+.step-label { margin-left:0.5rem; font-size:0.78rem; color:var(--text-sec); font-weight:500; transition:color 0.3s; }
+.step.active .step-label { color:var(--zurich-blue); font-weight:700; }
+.step.completed .step-label { color:var(--green); }
+.step-line { width:40px; height:2px; background:var(--border); margin:0 0.3rem; flex-shrink:0; }
+.step.completed + .step-line, .step-line.done { background:var(--green); }
+
+/* CONTENT */
+.content { max-width:1200px; margin:0 auto; padding:1.5rem; }
+.phase { display:none; animation: fadeIn 0.4s ease; }
+.phase.active { display:block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+/* PHASE HEADER */
+.phase-header { margin-bottom:1.5rem; }
+.phase-header h2 { font-size:1.5rem; color:var(--zurich-dark); font-weight:700; margin-bottom:0.3rem; }
+.phase-header p { color:var(--text-sec); font-size:0.9rem; line-height:1.5; }
+
+/* CARDS */
+.card { background:var(--card); border-radius:12px; padding:1.25rem; box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:1rem; }
+.card h3 { font-size:1rem; color:var(--zurich-dark); margin-bottom:0.8rem; font-weight:600; }
+
+/* KPI ROW */
+.kpi-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:0.8rem; margin-bottom:1rem; }
+.kpi-card { background:var(--card); border-radius:10px; padding:1rem; border:1px solid var(--border); box-shadow:var(--shadow); text-align:center; position:relative; overflow:hidden; }
+.kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.kpi-card.blue::before { background:var(--zurich-blue); }
+.kpi-card.green::before { background:var(--green); }
+.kpi-card.red::before { background:var(--red); }
+.kpi-card.orange::before { background:var(--orange); }
+.kpi-card.light::before { background:var(--zurich-light); }
+.kpi-value { font-size:1.6rem; font-weight:800; color:var(--text); margin:0.3rem 0; }
+.kpi-label { font-size:0.72rem; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+.kpi-sub { font-size:0.7rem; color:var(--text-sec); margin-top:0.2rem; }
+
+/* GRID LAYOUTS */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+@media(max-width:900px) { .grid-2,.grid-3 { grid-template-columns:1fr; } }
+
+/* FUNNEL */
+.funnel { margin:0.5rem 0; }
+.funnel-step { display:flex; align-items:center; margin-bottom:0.4rem; }
+.funnel-bar { height:32px; border-radius:4px; display:flex; align-items:center; padding:0 10px; color:#fff; font-size:0.75rem; font-weight:600; transition:width 0.8s ease; min-width:60px; }
+.funnel-data { margin-left:0.8rem; font-size:0.75rem; color:var(--text-sec); white-space:nowrap; }
+.funnel-data strong { color:var(--text); }
+
+/* TABLES */
+table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+th { background:var(--zurich-dark); color:#fff; padding:0.6rem 0.5rem; text-align:left; font-weight:600; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.3px; }
+td { padding:0.5rem; border-bottom:1px solid var(--border); }
+tr:nth-child(even) td { background:#F8F9FB; }
+tr:hover td { background:var(--zurich-sky); }
+.text-right { text-align:right; }
+.text-center { text-align:center; }
+.badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:10px; font-size:0.68rem; font-weight:600; }
+.badge-green { background:var(--green-bg); color:var(--green); }
+.badge-red { background:var(--red-bg); color:var(--red); }
+.badge-orange { background:var(--orange-bg); color:var(--orange); }
+
+/* ALERTS */
+.alert { border-radius:10px; padding:1rem; margin-bottom:0.8rem; border-left:4px solid; }
+.alert-red { background:var(--red-bg); border-color:var(--red); }
+.alert-orange { background:var(--orange-bg); border-color:var(--orange); }
+.alert-green { background:var(--green-bg); border-color:var(--green); }
+.alert-blue { background:var(--zurich-sky); border-color:var(--zurich-blue); }
+.alert h4 { font-size:0.85rem; margin-bottom:0.3rem; }
+.alert p, .alert li { font-size:0.8rem; color:var(--text); line-height:1.5; }
+.alert ul { margin-left:1rem; margin-top:0.3rem; }
+
+/* NAV BUTTONS */
+.nav-buttons { display:flex; justify-content:space-between; margin-top:2rem; padding-top:1rem; border-top:1px solid var(--border); }
+.btn { padding:0.65rem 1.5rem; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; border:none; transition:all 0.2s; }
+.btn-primary { background:var(--zurich-blue); color:#fff; }
+.btn-primary:hover { background:var(--zurich-dark); transform:translateY(-1px); box-shadow:var(--shadow-lg); }
+.btn-outline { background:#fff; color:var(--zurich-blue); border:2px solid var(--zurich-blue); }
+.btn-outline:hover { background:var(--zurich-sky); }
+.btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+/* TASK LIST */
+.task-list { list-style:none; }
+.task-item { display:flex; align-items:flex-start; padding:0.7rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem; background:#fff; transition:all 0.2s; gap:0.6rem; }
+.task-item:hover { box-shadow:var(--shadow); }
+.task-check { width:20px; height:20px; border-radius:4px; border:2px solid var(--border); cursor:pointer; flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+.task-check.checked { background:var(--green); border-color:var(--green); }
+.task-check.checked::after { content:'✓'; color:#fff; font-size:0.7rem; font-weight:700; }
+.task-item.done .task-text { text-decoration:line-through; color:var(--text-sec); }
+.task-text { font-size:0.82rem; line-height:1.4; flex:1; }
+.task-agent { font-size:0.7rem; background:var(--zurich-sky); color:var(--zurich-dark); padding:0.15rem 0.5rem; border-radius:4px; white-space:nowrap; font-weight:600; }
+.task-priority { font-size:0.65rem; padding:0.1rem 0.4rem; border-radius:4px; font-weight:700; }
+.task-priority.high { background:var(--red-bg); color:var(--red); }
+.task-priority.medium { background:var(--orange-bg); color:var(--orange); }
+.task-priority.low { background:var(--green-bg); color:var(--green); }
+.task-date { font-size:0.68rem; color:var(--text-sec); white-space:nowrap; }
+
+/* PROGRESS BARS */
+.progress-bar { height:8px; background:#E5E7EB; border-radius:4px; overflow:hidden; margin-top:0.3rem; }
+.progress-fill { height:100%; border-radius:4px; transition:width 0.5s ease; }
+.progress-fill.green { background:var(--green); }
+.progress-fill.red { background:var(--red); }
+.progress-fill.orange { background:var(--orange); }
+.progress-fill.blue { background:var(--zurich-blue); }
+
+/* CHART CONTAINER */
+.chart-wrap { position:relative; height:280px; }
+.chart-wrap-sm { position:relative; height:220px; }
+
+/* CPA HIGHLIGHT */
+.cpa-box { background:linear-gradient(135deg, #FEF3C7, #FDE68A); border:2px solid var(--orange); border-radius:12px; padding:1.2rem; text-align:center; }
+.cpa-box .big-num { font-size:2rem; font-weight:800; color:var(--red); }
+.cpa-box .label { font-size:0.8rem; color:var(--text-sec); }
+
+/* TOOLTIP STYLE CALLOUT */
+.callout { background:var(--zurich-sky); border-radius:8px; padding:0.8rem 1rem; margin:0.8rem 0; border-left:3px solid var(--zurich-blue); font-size:0.82rem; line-height:1.5; }
+.callout strong { color:var(--zurich-dark); }
+
+/* PRINT FRIENDLY */
+@media print {
+  .topbar,.stepper,.nav-buttons { display:none; }
+  .phase { display:block !important; page-break-before:always; }
+  .content { max-width:100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;">
+    <h1>ZURICH SEGUROS</h1>
+    <span class="subtitle">Dashboard Gestión Autos — Primer Trimestre 2026</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:0.8rem;">
+    <div id="syncStatus" style="display:flex;align-items:center;gap:0.4rem;font-size:0.72rem;color:rgba(255,255,255,0.7);cursor:pointer;" onclick="toggleConfig()">
+      <span id="syncDot" style="width:8px;height:8px;border-radius:50%;background:#6B7280;"></span>
+      <span id="syncText">Sin conectar</span>
+    </div>
+    <button onclick="toggleConfig()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:0.3rem 0.7rem;border-radius:6px;font-size:0.7rem;cursor:pointer;">Configurar Google Sheets</button>
+  </div>
+</div>
+
+<!-- CONFIG PANEL -->
+<div id="configPanel" style="display:none;background:#fff;border-bottom:2px solid var(--zurich-blue);padding:1.5rem 2rem;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+  <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+
+    <!-- EXCEL UPLOAD SECTION -->
+    <div style="border-right:1px solid var(--border);padding-right:2rem;">
+      <h3 style="font-size:0.95rem;color:var(--zurich-dark);margin-bottom:0.3rem;">Subir Excel del Informe</h3>
+      <p style="font-size:0.8rem;color:var(--text-sec);margin-bottom:0.8rem;">Arrastra o selecciona tu archivo INFORME AUTOS para actualizar todos los datos automáticamente</p>
+      <div style="border:2px dashed var(--border);border-radius:8px;padding:1.5rem;text-align:center;cursor:pointer;background:#F8F9FB;transition:all 0.3s;" id="dropZone">
+        <div style="font-size:1.5rem;margin-bottom:0.3rem;">📁</div>
+        <div style="font-size:0.9rem;font-weight:600;color:var(--zurich-dark);margin-bottom:0.2rem;">Arrastra tu archivo aquí</div>
+        <div style="font-size:0.75rem;color:var(--text-sec);margin-bottom:0.6rem;">o haz clic para seleccionar</div>
+        <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
+      <div id="excelMsg" style="margin-top:0.5rem;font-size:0.78rem;"></div>
+    </div>
+
+    <!-- GOOGLE SHEETS SECTION -->
+    <div style="padding-left:2rem;">
+      <h3 style="font-size:0.95rem;color:var(--zurich-dark);margin-bottom:0.3rem;">Conectar Google Sheets</h3>
+      <p style="font-size:0.8rem;color:var(--text-sec);margin-bottom:0.8rem;">Pega el ID de tu Google Sheet para que el dashboard lea los datos en tiempo real. El ID está en la URL de tu hoja: docs.google.com/spreadsheets/d/<strong>ESTE_ES_EL_ID</strong>/edit</p>
+      <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+        <input type="text" id="sheetIdInput" placeholder="Ej: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" style="flex:1;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;font-family:monospace;">
+        <button class="btn btn-primary" onclick="connectSheet()" style="padding:0.5rem 1rem;white-space:nowrap;">Conectar</button>
+      </div>
+      <button class="btn btn-outline" onclick="loadFromSheet()" style="padding:0.5rem 1rem;width:100%;">Actualizar Datos</button>
+      <div id="configMsg" style="margin-top:0.5rem;font-size:0.78rem;"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="stepper" id="stepper"></div>
+
+<div class="content">
+
+<!-- ═══════════════════════════════════ FASE 1 ═══════════════════════════════════ -->
+<div class="phase active" id="phase1">
+  <div class="phase-header">
+    <h2>Fase 1 — Diagnóstico General (Corte: 22 de marzo 2026)</h2>
+    <p>Vista rápida de cómo va la operación de seguros de autos. Aquí puedes ver los números clave del trimestre de un vistazo.</p>
+  </div>
+
+  <div class="kpi-row" id="kpi-main"></div>
+
+  <div class="callout">
+    <strong>¿Qué significan estos números?</strong> De cada 100 personas que nos llegan (registros), logramos hablar con 52. De esas 52, solo 13 piden cotización. Y de esas 13, cerramos 6 ventas. La meta es mejorar cada paso de este embudo.
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Embudo de Conversión — Trimestre Completo</h3>
+      <div class="funnel" id="funnel-q1"></div>
+    </div>
+    <div class="card">
+      <h3>Evolución Mensual</h3>
+      <div class="chart-wrap"><canvas id="chartEvol"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Comparativo por Mes — Todos los KPIs</h3>
+    <div style="overflow-x:auto;">
+      <table id="tblComparativo"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ FASE 2 ═══════════════════════════════════ -->
+<div class="phase" id="phase2">
+  <div class="phase-header">
+    <h2>Fase 2 — Rendimiento por Agente</h2>
+    <p>Cómo le fue a cada agente en marzo. Los colores indican quién va bien (verde), quién necesita atención (naranja) y quién necesita apoyo urgente (rojo).</p>
+  </div>
+
+  <div class="card">
+    <h3>Scorecard de Agentes — Marzo 2026</h3>
+    <div style="overflow-x:auto;"><table id="tblAgentes"></table></div>
+    <div style="display:flex;gap:1rem;margin-top:0.6rem;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;"><span style="width:12px;height:12px;background:var(--green-bg);border:1px solid var(--green);border-radius:2px;"></span> Buen rendimiento</span>
+      <span style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;"><span style="width:12px;height:12px;background:var(--orange-bg);border:1px solid var(--orange);border-radius:2px;"></span> Necesita atención</span>
+      <span style="display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;"><span style="width:12px;height:12px;background:var(--red-bg);border:1px solid var(--red);border-radius:2px;"></span> Apoyo urgente</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Ventas por Agente</h3>
+      <div class="chart-wrap"><canvas id="chartVentas"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Contactabilidad por Agente</h3>
+      <div class="chart-wrap"><canvas id="chartContacto"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Prima Generada por Agente</h3>
+      <div class="chart-wrap"><canvas id="chartPrima"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Efectividad Global (Ventas / Registros)</h3>
+      <div class="chart-wrap"><canvas id="chartEfect"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ FASE 3 ═══════════════════════════════════ -->
+<div class="phase" id="phase3">
+  <div class="phase-header">
+    <h2>Fase 3 — Análisis de Pauta y CPA</h2>
+    <p>Aquí está el problema central: la pauta digital trae registros pero NO están convirtiendo. Esto dispara el costo por adquisición (CPA) y afecta la rentabilidad. Veamos los datos.</p>
+  </div>
+
+  <div class="alert alert-red">
+    <h4>PROBLEMA IDENTIFICADO: La pauta trae leads que no convierten</h4>
+    <p>De 3.785 registros totales del trimestre, una parte significativa viene de pauta digital (Pauta + Pauta Max + WhatsApp Pauta). Sin embargo, estos leads tienen tasas de contactabilidad y cierre más bajas que los orgánicos, lo que eleva el CPA real de la operación.</p>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card red">
+      <div class="kpi-label">Total No Contacto</div>
+      <div class="kpi-value">1.412</div>
+      <div class="kpi-sub">37,3% del total de registros</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Dicen "No se registraron"</div>
+      <div class="kpi-value">291</div>
+      <div class="kpi-sub">7,7% — Leads que ni saben por qué los llamamos</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">No interesados</div>
+      <div class="kpi-value">492</div>
+      <div class="kpi-sub">33,5% de los contactados no cotizan</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Interesados en otro producto</div>
+      <div class="kpi-value">356</div>
+      <div class="kpi-sub">Quieren SOAT, hogar u otros — no autos</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Fuentes de Leads — Trimestre</h3>
+      <div class="chart-wrap"><canvas id="chartFuentes"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>¿Por qué NO cotizan? — Top Razones</h3>
+      <div class="chart-wrap"><canvas id="chartRazones"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Diagnóstico del Problema de Pauta</h3>
+    <div class="callout">
+      <strong>¿Qué es el CPA?</strong> Es cuánto le cuesta a la empresa conseguir una venta. Si inviertes $10.000.000 en pauta y logras 10 ventas, tu CPA es $1.000.000 por venta. Si los leads no convierten, el CPA se dispara.
+    </div>
+    <div style="overflow-x:auto;"><table id="tblPauta"></table></div>
+  </div>
+
+  <div class="card">
+    <h3>Simulador de CPA</h3>
+    <p style="font-size:0.82rem;color:var(--text-sec);margin-bottom:0.8rem;">Ingresa la inversión en pauta para calcular el CPA real de la operación. Estos campos los puedes actualizar cuando tengas los datos reales.</p>
+    <div class="grid-3">
+      <div>
+        <label style="font-size:0.75rem;font-weight:600;color:var(--text-sec);">Inversión Mensual Pauta ($)</label>
+        <input type="number" id="inputInversion" value="5000000" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;margin-top:0.3rem;">
+      </div>
+      <div>
+        <label style="font-size:0.75rem;font-weight:600;color:var(--text-sec);">Ventas desde Pauta (mes)</label>
+        <input type="number" id="inputVentasPauta" value="15" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;margin-top:0.3rem;">
+      </div>
+      <div>
+        <label style="font-size:0.75rem;font-weight:600;color:var(--text-sec);">Prima Promedio Venta ($)</label>
+        <input type="number" id="inputPrimaPromedio" value="1928950" style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;margin-top:0.3rem;">
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:0.8rem;" onclick="calcCPA()">Calcular CPA</button>
+    <div id="cpaResult" style="margin-top:1rem;display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h3>Análisis "No se registró en la página" por Agente</h3>
+    <p style="font-size:0.82rem;color:var(--text-sec);margin-bottom:0.6rem;">Estos son los clientes que dicen no haberse registrado. Si un agente tiene muchos de estos, puede significar que la pauta está atrayendo personas que no entienden para qué dejaron sus datos.</p>
+    <div class="chart-wrap-sm"><canvas id="chartNoRegistro"></canvas></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ FASE 4 ═══════════════════════════════════ -->
+<div class="phase" id="phase4">
+  <div class="phase-header">
+    <h2>Fase 4 — Alertas y Hallazgos</h2>
+    <p>Estos son los problemas más importantes que encontramos. Léelos como si fueran una auditoría: cada alerta tiene una acción concreta para mejorar.</p>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="alert alert-red">
+        <h4>ALERTA CRÍTICA: Contactabilidad Baja</h4>
+        <p>4 agentes están por debajo del 50% de contactabilidad:</p>
+        <ul>
+          <li><strong>Tatiana Pedraza:</strong> 36,0% (la más baja)</li>
+          <li><strong>Ana Maria Robledo:</strong> 41,8%</li>
+          <li><strong>Marlen Chacon:</strong> 42,4%</li>
+          <li><strong>Alejandra Londoño:</strong> 46,3%</li>
+        </ul>
+        <p style="margin-top:0.4rem;font-weight:600;color:var(--zurich-dark);">Acción: Revisar horarios de llamada, calidad de datos y técnicas de seguimiento (rellamada).</p>
+      </div>
+
+      <div class="alert alert-red">
+        <h4>ALERTA CRÍTICA: Baja Efectividad en Cierre</h4>
+        <p>3 agentes cierran menos del 3% de sus registros:</p>
+        <ul>
+          <li><strong>Alejandra Londoño:</strong> 2,1% (3 ventas de 142 registros)</li>
+          <li><strong>Tatiana Pedraza:</strong> 2,2% (2 ventas de 90 registros)</li>
+          <li><strong>Ana Maria Robledo:</strong> 2,8% (2 ventas de 71 registros)</li>
+        </ul>
+        <p style="margin-top:0.4rem;font-weight:600;color:var(--zurich-dark);">Acción: Capacitación urgente en cierre comercial. Acompañamiento con Johana Soto como mentora.</p>
+      </div>
+    </div>
+
+    <div>
+      <div class="alert alert-orange">
+        <h4>PRECAUCIÓN: Alto Porcentaje de "No Aptos"</h4>
+        <p>Algunos agentes reportan muchos registros como "no aptos":</p>
+        <ul>
+          <li><strong>Johana Soto:</strong> 52 no aptos (29,1%) — 40 por "Servicio al cliente"</li>
+          <li><strong>Marlen Chacon:</strong> 20 no aptos (19,4%) — 16 por "Servicio al cliente"</li>
+        </ul>
+        <p style="margin-top:0.4rem;font-weight:600;color:var(--zurich-dark);">Acción: Auditar la tipificación de "Servicio al cliente". ¿Son realmente no aptos o es mala clasificación?</p>
+      </div>
+
+      <div class="alert alert-orange">
+        <h4>PRECAUCIÓN: Baja Tasa de Cotización</h4>
+        <p>3 agentes no logran llevar al cliente a cotizar:</p>
+        <ul>
+          <li><strong>Ana Maria Robledo:</strong> 10,7% cotizaciones vs contactados</li>
+          <li><strong>Paola Rodriguez:</strong> 13,8%</li>
+          <li><strong>Tatiana Pedraza:</strong> 14,8%</li>
+        </ul>
+        <p style="margin-top:0.4rem;font-weight:600;color:var(--zurich-dark);">Acción: Reforzar argumentación comercial y manejo de objeciones.</p>
+      </div>
+
+      <div class="alert alert-green">
+        <h4>OPORTUNIDAD: Mejores Prácticas para Replicar</h4>
+        <ul>
+          <li><strong>Johana Soto:</strong> 81,0% cierre vs cotizado — si cotiza, cierra</li>
+          <li><strong>Marlen Chacon:</strong> 38,9% cotización vs contactados — la mejor convenciendo</li>
+          <li><strong>Diana Rodriguez:</strong> 7,3% efectividad global — consistente</li>
+        </ul>
+        <p style="margin-top:0.4rem;font-weight:600;color:var(--zurich-dark);">Acción: Documentar técnicas de estas agentes para capacitar al resto del equipo.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Tendencia del Trimestre — Señales de Alerta</h3>
+    <div class="grid-3">
+      <div class="alert alert-red" style="margin:0;">
+        <h4 style="font-size:0.8rem;">Registros en Caída</h4>
+        <p>Enero: 1.273 → Febrero: 1.656 → Marzo: 856</p>
+        <p>Marzo cayó <strong>48,3%</strong> vs febrero</p>
+      </div>
+      <div class="alert alert-orange" style="margin:0;">
+        <h4 style="font-size:0.8rem;">Contactabilidad Decreciente</h4>
+        <p>Enero: 60,7% → Febrero: 58,5% → Marzo: 53,7%</p>
+        <p>Tendencia consistente a la baja</p>
+      </div>
+      <div class="alert alert-orange" style="margin:0;">
+        <h4 style="font-size:0.8rem;">Renovaciones Abril</h4>
+        <p>Solo 5 renovaciones de 75 registros</p>
+        <p>Tasa de <strong>6,7%</strong> — requiere intervención</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ FASE 5 ═══════════════════════════════════ -->
+<div class="phase" id="phase5">
+  <div class="phase-header">
+    <h2>Fase 5 — Plan de Acción</h2>
+    <p>Estas son las tareas concretas para mejorar. Puedes marcar las que vayas completando haciendo clic en el cuadro. Todo queda guardado mientras tengas esta página abierta.</p>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Tareas</div>
+      <div class="kpi-value" id="totalTasks">0</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Completadas</div>
+      <div class="kpi-value" id="doneTasks">0</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Pendientes</div>
+      <div class="kpi-value" id="pendingTasks">0</div>
+    </div>
+    <div class="kpi-card light">
+      <div class="kpi-label">Progreso</div>
+      <div class="kpi-value" id="progressPct">0%</div>
+      <div class="progress-bar"><div class="progress-fill blue" id="progressBar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Tareas de Mejora en Contactabilidad</h3>
+    <ul class="task-list" id="taskContacto"></ul>
+  </div>
+
+  <div class="card">
+    <h3>Tareas de Cierre Comercial</h3>
+    <ul class="task-list" id="taskCierre"></ul>
+  </div>
+
+  <div class="card">
+    <h3>Tareas de Calidad de Leads / Pauta</h3>
+    <ul class="task-list" id="taskPauta"></ul>
+  </div>
+
+  <div class="card">
+    <h3>Tareas de Renovaciones</h3>
+    <ul class="task-list" id="taskRenov"></ul>
+  </div>
+
+  <div class="card">
+    <h3>Tareas de Auditoría Interna</h3>
+    <ul class="task-list" id="taskAudit"></ul>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav-buttons">
+  <button class="btn btn-outline" id="btnPrev" onclick="navigate(-1)" disabled>← Fase Anterior</button>
+  <button class="btn btn-primary" id="btnNext" onclick="navigate(1)">Siguiente Fase →</button>
+</div>
+
+</div>
+
+<script>
+// ═══════════════════════ GOOGLE SHEETS CONNECTION ═══════════════════════
+let SHEET_ID = localStorage.getItem('zurich_sheet_id') || '';
+const SHEET_NAMES = {
+  gestion: 'Gestión Diaria',
+  tipificacion: 'Tipificación Detallada',
+  plan: 'Plan de Acción',
+  inversion: 'Inversión Pauta'
+};
+
+function toggleConfig(){ document.getElementById('configPanel').style.display = document.getElementById('configPanel').style.display==='none'?'block':'none'; if(SHEET_ID) document.getElementById('sheetIdInput').value=SHEET_ID; }
+
+function connectSheet(){
+  const id = document.getElementById('sheetIdInput').value.trim();
+  if(!id){document.getElementById('configMsg').innerHTML='<span style="color:var(--red)">Ingresa un ID válido</span>';return;}
+  SHEET_ID = id;
+  localStorage.setItem('zurich_sheet_id', id);
+  document.getElementById('configMsg').innerHTML='<span style="color:var(--green)">ID guardado. Cargando datos...</span>';
+  loadFromSheet();
+}
+
+async function fetchSheetCSV(sheetName){
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`Error ${res.status} al cargar ${sheetName}`);
+  return res.text();
+}
+
+function parseCSV(csv){
+  const lines = csv.split('\n').filter(l=>l.trim());
+  return lines.map(line => {
+    const result = []; let current = ''; let inQuotes = false;
+    for(let i=0;i<line.length;i++){
+      const ch = line[i];
+      if(ch==='"'){inQuotes=!inQuotes}
+      else if(ch===','&&!inQuotes){result.push(current.trim());current=''}
+      else{current+=ch}
+    }
+    result.push(current.trim());
+    return result;
+  });
+}
+
+function updateSyncUI(status, msg){
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  if(status==='ok'){dot.style.background='#059669';txt.textContent=msg||'Conectado — Datos cargados';}
+  else if(status==='loading'){dot.style.background='#D97706';txt.textContent=msg||'Cargando...';}
+  else if(status==='error'){dot.style.background='#DC2626';txt.textContent=msg||'Error de conexión';}
+  else{dot.style.background='#6B7280';txt.textContent='Sin conectar';}
+}
+
+async function loadFromSheet(){
+  if(!SHEET_ID){updateSyncUI('none');return;}
+  updateSyncUI('loading','Cargando datos de Google Sheets...');
+  try{
+    // Load Gestión Diaria
+    const gestionCSV = await fetchSheetCSV(SHEET_NAMES.gestion);
+    const gestionRows = parseCSV(gestionCSV);
+    processGestionData(gestionRows);
+
+    // Load Plan de Acción
+    const planCSV = await fetchSheetCSV(SHEET_NAMES.plan);
+    const planRows = parseCSV(planCSV);
+    processPlanData(planRows);
+
+    // Load Inversión Pauta
+    try{
+      const invCSV = await fetchSheetCSV(SHEET_NAMES.inversion);
+      const invRows = parseCSV(invCSV);
+      processInversionData(invRows);
+    }catch(e){/* optional sheet */}
+
+    updateSyncUI('ok','Conectado — Última carga: '+new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('configMsg').innerHTML='<span style="color:var(--green)">Datos cargados correctamente desde Google Sheets</span>';
+  }catch(err){
+    updateSyncUI('error','Error: '+err.message);
+    document.getElementById('configMsg').innerHTML=`<span style="color:var(--red)">Error: ${err.message}. Verifica que la hoja esté publicada y el ID sea correcto.</span>`;
+  }
+}
+
+function processGestionData(rows){
+  if(rows.length<3) return;
+  // Find header row (contains "Fecha")
+  let headerIdx = rows.findIndex(r => r.some(c => c.toLowerCase().includes('fecha')));
+  if(headerIdx<0) return;
+  const headers = rows[headerIdx].map(h=>h.toLowerCase().replace(/[*]/g,'').trim());
+  const dataRows = rows.slice(headerIdx+1).filter(r=>r[0]&&r[0]!=='TOTAL DÍA'&&!r[0].includes('KPI'));
+
+  // Aggregate by month and by agent
+  const byMonth = {}; const byAgent = {};
+  dataRows.forEach(r=>{
+    const dateStr = r[headers.indexOf('fecha')]||'';
+    const agent = r[headers.indexOf('agente')]||'';
+    const fuente = r[headers.indexOf('fuente')]||'';
+    const reg = parseFloat(r[headers.indexOf('registros recibidos')])||0;
+    const noApt = parseFloat(r[headers.indexOf('registros no aptos')])||0;
+    const cont = parseFloat(r[headers.indexOf('contactados')])||0;
+    const cotiz = parseFloat(r[headers.indexOf('cotizados')])||0;
+    const ventas = parseFloat(r[headers.indexOf('ventas')])||0;
+    const prima = parseFloat(r[headers.indexOf('prima venta')])||0;
+    const noCont = parseFloat(r[headers.indexOf('no contacto')])||0;
+
+    // Determine month
+    let month = 'Otro';
+    if(dateStr.includes('01')||dateStr.includes('Jan')||dateStr.includes('Ene')) month='Enero';
+    else if(dateStr.includes('02')||dateStr.includes('Feb')) month='Febrero';
+    else if(dateStr.includes('03')||dateStr.includes('Mar')) month='Marzo';
+    else if(dateStr.includes('04')||dateStr.includes('Abr')||dateStr.includes('Apr')) month='Abril';
+
+    if(!byMonth[month]) byMonth[month]={reg:0,noApt:0,cont:0,cotiz:0,ventas:0,prima:0,noCont:0};
+    byMonth[month].reg+=reg; byMonth[month].noApt+=noApt; byMonth[month].cont+=cont;
+    byMonth[month].cotiz+=cotiz; byMonth[month].ventas+=ventas; byMonth[month].prima+=prima; byMonth[month].noCont+=noCont;
+
+    if(agent && agent!==''){
+      if(!byAgent[agent]) byAgent[agent]={reg:0,noApt:0,cont:0,cotiz:0,ventas:0,prima:0};
+      byAgent[agent].reg+=reg; byAgent[agent].noApt+=noApt; byAgent[agent].cont+=cont;
+      byAgent[agent].cotiz+=cotiz; byAgent[agent].ventas+=ventas; byAgent[agent].prima+=prima;
+    }
+  });
+
+  // Update live data indicator
+  const totalReg = Object.values(byMonth).reduce((s,m)=>s+m.reg,0);
+  const totalVtas = Object.values(byMonth).reduce((s,m)=>s+m.ventas,0);
+  if(totalReg > 0){
+    console.log('Google Sheets data loaded:', {months: Object.keys(byMonth), totalReg, totalVtas, agents: Object.keys(byAgent).length});
+  }
+}
+
+function processPlanData(rows){
+  if(rows.length<3) return;
+  let headerIdx = rows.findIndex(r => r.some(c => c.toLowerCase().includes('tarea') || c.toLowerCase().includes('id')));
+  if(headerIdx<0) return;
+  const headers = rows[headerIdx].map(h=>h.toLowerCase().trim());
+  const dataRows = rows.slice(headerIdx+1).filter(r=>r[0]&&!r[0].includes('RESUMEN'));
+
+  const estadoIdx = headers.findIndex(h=>h.includes('estado'));
+  const tareaIdx = headers.findIndex(h=>h.includes('tarea'));
+  const respIdx = headers.findIndex(h=>h.includes('responsable'));
+  const prioIdx = headers.findIndex(h=>h.includes('prioridad'));
+
+  if(estadoIdx<0||tareaIdx<0) return;
+
+  // Update task checkboxes based on Sheet status
+  const allChecks = document.querySelectorAll('.task-check');
+  const allItems = document.querySelectorAll('.task-item');
+
+  dataRows.forEach((r,i)=>{
+    const estado = (r[estadoIdx]||'').trim().toLowerCase();
+    if(i < allChecks.length){
+      if(estado==='completada'||estado==='completado'){
+        allChecks[i].classList.add('checked');
+        allItems[i].classList.add('done');
+      } else {
+        allChecks[i].classList.remove('checked');
+        allItems[i].classList.remove('done');
+      }
+    }
+  });
+  updateProgress();
+}
+
+function processInversionData(rows){
+  if(rows.length<3) return;
+  // Just log for now — CPA calculator uses manual input
+  console.log('Inversión data loaded:', rows.length-1, 'rows');
+}
+
+// ═══════════════════════ EXCEL UPLOAD ═══════════════════════
+function processUploadedExcel(workbook){
+  try{
+    const sheets = workbook.SheetNames;
+    console.log('Excel sheets found:', sheets);
+
+    // Look for "TOTAL POR MES" or similar sheet
+    const totalSheet = sheets.find(s => s.toLowerCase().includes('total') || s.toLowerCase().includes('mes')) || sheets[0];
+    const agentSheet = sheets.find(s => s.toLowerCase().includes('agente') || s.toLowerCase().includes('agente')) || sheets[1];
+
+    // Parse TOTAL POR MES sheet
+    if(totalSheet){
+      const data = XLSX.utils.sheet_to_json(workbook.Sheets[totalSheet]);
+      console.log('Total por mes data:', data);
+
+      // Find rows with month names
+      data.forEach(row => {
+        const rowKeys = Object.keys(row);
+        const monthCell = rowKeys.find(k => k.toLowerCase().includes('mes') || k==='') || rowKeys[0];
+        const rowLabel = row[monthCell]||'';
+
+        // Match to months: Enero, Febrero, Marzo
+        let month = null;
+        if(rowLabel.toLowerCase().includes('enero')) month = 'Enero';
+        else if(rowLabel.toLowerCase().includes('febrero')) month = 'Febrero';
+        else if(rowLabel.toLowerCase().includes('marzo')) month = 'Marzo';
+        else if(rowLabel.toLowerCase().includes('q1') || rowLabel.toLowerCase().includes('total')) return; // Skip Q1/Total for now
+
+        if(month){
+          const regKey = rowKeys.find(k => k.toLowerCase().includes('registr') && k.toLowerCase().includes('recib'));
+          const noAptKey = rowKeys.find(k => k.toLowerCase().includes('no apt'));
+          const aptKey = rowKeys.find(k => k.toLowerCase().includes('apt') && !k.toLowerCase().includes('no'));
+          const gestKey = rowKeys.find(k => k.toLowerCase().includes('gestion'));
+          const contKey = rowKeys.find(k => k.toLowerCase().includes('contacta'));
+          const cotizKey = rowKeys.find(k => k.toLowerCase().includes('cotiza'));
+          const ventasKey = rowKeys.find(k => k.toLowerCase().includes('venta'));
+          const primaKey = rowKeys.find(k => k.toLowerCase().includes('prima'));
+
+          const newData = {
+            reg: parseFloat(row[regKey])||0,
+            noApt: parseFloat(row[noAptKey])||0,
+            apt: parseFloat(row[aptKey])||0,
+            gest: parseFloat(row[gestKey])||0,
+            cont: parseFloat(row[contKey])||0,
+            cotiz: parseFloat(row[cotizKey])||0,
+            ventas: parseFloat(row[ventasKey])||0,
+            prima: parseFloat(row[primaKey])||0
+          };
+
+          // Calculate percentages
+          if(newData.reg > 0){
+            newData.pCont = (newData.cont / newData.apt * 100).toFixed(1);
+            newData.pCotCont = (newData.cotiz / newData.cont * 100).toFixed(1);
+            newData.pEfect = (newData.ventas / newData.reg * 100).toFixed(1);
+            newData.pVtaCot = (newData.ventas / newData.cotiz * 100).toFixed(1);
+            newData.pVtaCont = (newData.ventas / newData.cont * 100).toFixed(1);
+          }
+          newData.proceso = 0;
+
+          if(mData[month]){
+            mData[month] = newData;
+          }
+        }
+      });
+    }
+
+    // Parse INFORME POR AGENTES sheet
+    if(agentSheet){
+      const agData = XLSX.utils.sheet_to_json(workbook.Sheets[agentSheet]);
+      console.log('Agent data:', agData);
+
+      // Reset arrays
+      ag.reg = []; ag.noApt = []; ag.apt = []; ag.gest = []; ag.cont = [];
+      ag.pCont = []; ag.cotiz = []; ag.pCotCont = []; ag.ventas = []; ag.prima = [];
+      ag.pVtaCot = []; ag.pVtaCont = []; ag.pEfect = []; ag.noRegistro = []; ag.noCotiza = [];
+      agNames.length = 0; agShort.length = 0;
+
+      agData.forEach(row => {
+        const rowKeys = Object.keys(row);
+        const nameCell = rowKeys.find(k => k.toLowerCase().includes('agente') || k.toLowerCase().includes('nombre')) || rowKeys[0];
+        const agentName = row[nameCell];
+
+        if(!agentName || agentName.toLowerCase().includes('total')) return;
+
+        agNames.push(agentName);
+        agShort.push(agentName.split(' ').map(w => w[0]).join('.'));
+
+        const regKey = rowKeys.find(k => k.toLowerCase().includes('registr'));
+        const noAptKey = rowKeys.find(k => k.toLowerCase().includes('no apt'));
+        const aptKey = rowKeys.find(k => k.toLowerCase().includes('apt') && !k.toLowerCase().includes('no'));
+        const gestKey = rowKeys.find(k => k.toLowerCase().includes('gestion'));
+        const contKey = rowKeys.find(k => k.toLowerCase().includes('contacta'));
+        const cotizKey = rowKeys.find(k => k.toLowerCase().includes('cotiza'));
+        const ventasKey = rowKeys.find(k => k.toLowerCase().includes('venta'));
+        const primaKey = rowKeys.find(k => k.toLowerCase().includes('prima'));
+
+        ag.reg.push(parseFloat(row[regKey])||0);
+        ag.noApt.push(parseFloat(row[noAptKey])||0);
+        ag.apt.push(parseFloat(row[aptKey])||0);
+        ag.gest.push(parseFloat(row[gestKey])||0);
+        ag.cont.push(parseFloat(row[contKey])||0);
+        ag.cotiz.push(parseFloat(row[cotizKey])||0);
+        ag.ventas.push(parseFloat(row[ventasKey])||0);
+        ag.prima.push(parseFloat(row[primaKey])||0);
+
+        const regVal = parseFloat(row[regKey])||0;
+        const contVal = parseFloat(row[contKey])||0;
+        const cotizVal = parseFloat(row[cotizKey])||0;
+        const ventasVal = parseFloat(row[ventasKey])||0;
+
+        ag.pCont.push(regVal > 0 ? (contVal / regVal * 100).toFixed(1) : 0);
+        ag.pCotCont.push(contVal > 0 ? (cotizVal / contVal * 100).toFixed(1) : 0);
+        ag.pEfect.push(regVal > 0 ? (ventasVal / regVal * 100).toFixed(1) : 0);
+        ag.pVtaCot.push(cotizVal > 0 ? (ventasVal / cotizVal * 100).toFixed(1) : 0);
+        ag.pVtaCont.push(contVal > 0 ? (ventasVal / contVal * 100).toFixed(1) : 0);
+        ag.noRegistro.push(0); // Would need specific column
+        ag.noCotiza.push(0); // Would need specific column
+      });
+    }
+
+    // Recalculate Q1 totals
+    q1.reg = mData.Enero.reg + mData.Febrero.reg + mData.Marzo.reg;
+    q1.noApt = mData.Enero.noApt + mData.Febrero.noApt + mData.Marzo.noApt;
+    q1.apt = mData.Enero.apt + mData.Febrero.apt + mData.Marzo.apt;
+    q1.gest = mData.Enero.gest + mData.Febrero.gest + mData.Marzo.gest;
+    q1.cont = mData.Enero.cont + mData.Febrero.cont + mData.Marzo.cont;
+    q1.cotiz = mData.Enero.cotiz + mData.Febrero.cotiz + mData.Marzo.cotiz;
+    q1.ventas = mData.Enero.ventas + mData.Febrero.ventas + mData.Marzo.ventas;
+    q1.prima = mData.Enero.prima + mData.Febrero.prima + mData.Marzo.prima;
+    q1.pCont = (q1.cont / q1.apt * 100).toFixed(1);
+    q1.pCotCont = (q1.cotiz / q1.cont * 100).toFixed(1);
+    q1.pEfect = (q1.ventas / q1.reg * 100).toFixed(1);
+    q1.pVtaCot = (q1.ventas / q1.cotiz * 100).toFixed(1);
+    q1.pVtaCont = (q1.ventas / q1.cont * 100).toFixed(1);
+    q1.proceso = mData.Enero.proceso + mData.Febrero.proceso + mData.Marzo.proceso;
+
+    // Rebuild all displays
+    buildKPIs();
+    buildFunnel();
+    buildComparativo();
+    buildAgentTable();
+    initCharts();
+
+    document.getElementById('excelMsg').innerHTML = '<span style="color:var(--green)">Datos cargados correctamente desde Excel</span>';
+    console.log('Excel data processed successfully');
+  } catch(err){
+    console.error('Excel processing error:', err);
+    document.getElementById('excelMsg').innerHTML = `<span style="color:var(--red)">Error: ${err.message}</span>`;
+  }
+}
+
+// Excel file handlers
+document.addEventListener('DOMContentLoaded', ()=>{
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('excelFileInput');
+
+  if(dropZone && fileInput){
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.background = '#EBF5FF';
+      dropZone.style.borderColor = 'var(--zurich-blue)';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.background = '#F8F9FB';
+      dropZone.style.borderColor = 'var(--border)';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.background = '#F8F9FB';
+      dropZone.style.borderColor = 'var(--border)';
+      const files = e.dataTransfer.files;
+      if(files.length > 0) handleExcelFile(files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if(e.target.files.length > 0) handleExcelFile(e.target.files[0]);
+    });
+  }
+});
+
+function handleExcelFile(file){
+  if(!file.name.match(/\.(xlsx|xls|csv)$/i)){
+    document.getElementById('excelMsg').innerHTML = '<span style="color:var(--red)">Por favor selecciona un archivo .xlsx, .xls o .csv</span>';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      processUploadedExcel(workbook);
+    } catch(err){
+      document.getElementById('excelMsg').innerHTML = `<span style="color:var(--red)">Error al leer archivo: ${err.message}</span>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Auto-load if sheet ID is saved
+if(SHEET_ID){
+  document.addEventListener('DOMContentLoaded', ()=>{ setTimeout(loadFromSheet, 1000); });
+}
+
+// ═══════════════════════ DATA ═══════════════════════
+const months = ["Enero","Febrero","Marzo"];
+const mData = {
+  Enero:{reg:1273,noApt:164,apt:1109,gest:1150,cont:708,pCont:61.6,cotiz:212,pCotCont:29.9,proceso:30,ventas:81,prima:173970858,pVtaCot:38.2,pVtaCont:11.4,pEfect:6.4},
+  Febrero:{reg:1655,noApt:193,apt:1462,gest:1460,cont:887,pCont:60.8,cotiz:202,pCotCont:22.8,proceso:24,ventas:101,prima:180381181,pVtaCot:50.0,pVtaCont:11.4,pEfect:6.1},
+  Marzo:{reg:1222,noApt:135,apt:1087,gest:1128,cont:645,pCont:57.2,cotiz:133,pCotCont:20.6,proceso:19,ventas:70,prima:126834086,pVtaCot:52.6,pVtaCont:10.9,pEfect:5.7}
+};
+const q1 = {reg:4150,noApt:492,apt:3658,gest:3738,cont:2240,pCont:59.9,cotiz:547,pCotCont:24.4,proceso:73,ventas:252,prima:481186125,pVtaCot:46.1,pVtaCont:11.3,pEfect:6.1};
+const agNames = ["Daniela Chacon","Johana Soto","Alejandra Londoño","Ana Maria Robledo","Paola Rodriguez","Marlen Chacon","Yeison Navas","Diana Rodriguez"];
+const agShort = ["D.Chacon","J.Soto","A.Londoño","A.Robledo","P.Rodriguez","M.Chacon","Y.Navas","D.Rodriguez"];
+const ag = {
+  reg:[33,245,162,129,181,149,119,196],noApt:[3,75,6,18,4,12,2,12],apt:[30,170,156,111,177,137,117,184],
+  gest:[30,185,155,117,182,146,116,188],cont:[19,133,65,59,132,79,40,113],
+  pCont:[63.3,71.9,41.9,50.4,72.5,54.1,34.5,60.1],
+  cotiz:[2,33,14,8,21,24,2,24],pCotCont:[10.5,24.8,21.5,13.6,15.9,30.4,5.0,21.2],
+  ventas:[0,21,4,7,7,14,1,12],prima:[0,36882569,6685737,12225725,12887450,25144297,1896056,23436507],
+  pVtaCot:[0,63.6,28.6,87.5,33.3,58.3,50.0,50.0],
+  pVtaCont:[0,15.8,6.2,11.9,5.3,17.7,2.5,10.6],
+  pEfect:[0,8.6,2.5,5.4,3.9,9.4,0.8,6.1],
+  noRegistro:[2,9,23,16,35,8,7,26],noCotiza:[17,100,51,51,111,55,38,89]
+};
+
+function fmtCOP(n){return "$"+Math.round(n).toLocaleString("es-CO").replace(/,/g,".")}
+function fmtN(n){return Math.round(n).toLocaleString("es-CO").replace(/,/g,".")}
+
+// ═══════════════════════ WIZARD NAV ═══════════════════════
+const phases = ["Diagnóstico General","Rendimiento Agentes","Pauta y CPA","Alertas y Hallazgos","Plan de Acción"];
+let cur = 0;
+
+function buildStepper(){
+  const el = document.getElementById("stepper");
+  el.innerHTML = phases.map((p,i) => {
+    const cls = i===cur?"active":i<cur?"completed":"";
+    const line = i<phases.length-1?`<div class="step-line ${i<cur?'done':''}"></div>`:"";
+    return `<div class="step ${cls}" onclick="goTo(${i})"><div class="step-num">${i<cur?'✓':i+1}</div><span class="step-label">${p}</span></div>${line}`;
+  }).join("");
+}
+
+function goTo(idx){
+  document.querySelectorAll(".phase").forEach((p,i)=>{p.classList.toggle("active",i===idx)});
+  cur=idx;
+  buildStepper();
+  document.getElementById("btnPrev").disabled=cur===0;
+  document.getElementById("btnNext").textContent=cur===phases.length-1?"Finalizado ✓":"Siguiente Fase →";
+  document.getElementById("btnNext").disabled=cur===phases.length-1;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function navigate(d){goTo(cur+d)}
+
+// ═══════════════════════ PHASE 1 ═══════════════════════
+function buildKPIs(){
+  const kpis=[
+    {label:"Registros Recibidos",val:fmtN(q1.reg),cls:"blue"},
+    {label:"Contactados",val:fmtN(q1.cont),cls:"light",sub:`${q1.pCont}% del total`},
+    {label:"Cotizaciones",val:fmtN(q1.cotiz),cls:"orange",sub:`${q1.pCotCont}% de contactados`},
+    {label:"Ventas Cerradas",val:fmtN(q1.ventas),cls:"green",sub:`${q1.pEfect}% efectividad`},
+    {label:"Prima Total",val:fmtCOP(q1.prima),cls:"blue"},
+  ];
+  document.getElementById("kpi-main").innerHTML = kpis.map(k=>`
+    <div class="kpi-card ${k.cls}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.val}</div>
+      ${k.sub?`<div class="kpi-sub">${k.sub}</div>`:""}
+    </div>`).join("");
+}
+
+function buildFunnel(){
+  const steps=[
+    {label:"Registros Recibidos",val:q1.reg,color:"var(--zurich-dark)"},
+    {label:"Registros Aptos",val:q1.apt,color:"var(--zurich-blue)"},
+    {label:"Contactados",val:q1.cont,color:"var(--zurich-mid)"},
+    {label:"Cotizaciones",val:q1.cotiz,color:"var(--zurich-light)"},
+    {label:"Ventas",val:q1.ventas,color:"var(--green)"}
+  ];
+  const max=steps[0].val;
+  document.getElementById("funnel-q1").innerHTML = steps.map(s=>{
+    const w = Math.max((s.val/max)*100,12);
+    const pct = (s.val/q1.reg*100).toFixed(1);
+    return `<div class="funnel-step">
+      <div class="funnel-bar" style="width:${w}%;background:${s.color}">${s.label}</div>
+      <div class="funnel-data"><strong>${fmtN(s.val)}</strong> (${pct}%)</div>
+    </div>`;
+  }).join("");
+}
+
+function buildComparativo(){
+  const rows=[
+    ["Registros","reg","num",true],["No Aptos","noApt","num",false],["Aptos","apt","num",true],
+    ["Gestionados","gest","num",true],["Contactados","cont","num",true],["% Contacto","pCont","pct",true],
+    ["Cotizaciones","cotiz","num",true],["% Cotiz/Contactados","pCotCont","pct",true],
+    ["En Proceso","proceso","num",false],["Ventas","ventas","num",true],
+    ["Prima","prima","cop",true],["% Venta/Cotizado","pVtaCot","pct",true],
+    ["% Venta/Contactado","pVtaCont","pct",true],["% Efectividad","pEfect","pct",true]
+  ];
+  const fmt=(v,t)=>t==="cop"?fmtCOP(v):t==="pct"?v.toFixed(1)+"%":fmtN(v);
+  let html=`<thead><tr><th>KPI</th><th class="text-right">Enero</th><th class="text-right">Febrero</th><th class="text-right">Marzo</th><th class="text-right">Trimestre</th><th class="text-center">Tend.</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const vals=[mData.Enero[r[1]],mData.Febrero[r[1]],mData.Marzo[r[1]]];
+    const qv=q1[r[1]];
+    const up=vals[2]>vals[0];
+    const trend=vals[2]>vals[0]?"▲":vals[2]<vals[0]?"▼":"—";
+    const tColor=(r[3]?up:!up)?"var(--green)":"var(--red)";
+    html+=`<tr><td style="font-weight:600">${r[0]}</td>${vals.map(v=>`<td class="text-right">${fmt(v,r[2])}</td>`).join("")}<td class="text-right" style="font-weight:700">${fmt(qv,r[2])}</td><td class="text-center" style="color:${tColor};font-weight:700;font-size:1rem">${trend}</td></tr>`;
+  });
+  html+="</tbody>";
+  document.getElementById("tblComparativo").innerHTML=html;
+}
+
+// ═══════════════════════ PHASE 2 ═══════════════════════
+function buildAgentTable(){
+  let html=`<thead><tr><th>Agente</th><th class="text-right">Reg.</th><th class="text-right">Apt.</th><th class="text-right">Cont.</th><th class="text-right">%Cont.</th><th class="text-right">Cotiz.</th><th class="text-right">%Cot.</th><th class="text-right">Vtas</th><th class="text-right">Prima</th><th class="text-right">%Vta/Cot</th><th class="text-right">%Efect.</th></tr></thead><tbody>`;
+  agNames.forEach((n,i)=>{
+    const cBg=ag.pCont[i]>=55?"var(--green-bg)":ag.pCont[i]>=45?"var(--orange-bg)":"var(--red-bg)";
+    const cCl=ag.pCont[i]>=55?"green":ag.pCont[i]>=45?"orange":"red";
+    const eBg=ag.pEfect[i]>=6?"var(--green-bg)":ag.pEfect[i]>=4?"var(--orange-bg)":"var(--red-bg)";
+    const eCl=ag.pEfect[i]>=6?"green":ag.pEfect[i]>=4?"orange":"red";
+    html+=`<tr><td style="font-weight:600;white-space:nowrap">${n}</td>
+      <td class="text-right">${ag.reg[i]}</td><td class="text-right">${ag.apt[i]}</td><td class="text-right">${ag.cont[i]}</td>
+      <td class="text-right"><span class="badge badge-${cCl}">${ag.pCont[i]}%</span></td>
+      <td class="text-right">${ag.cotiz[i]}</td><td class="text-right">${ag.pCotCont[i]}%</td>
+      <td class="text-right" style="font-weight:700">${ag.ventas[i]}</td>
+      <td class="text-right">${fmtCOP(ag.prima[i])}</td>
+      <td class="text-right">${ag.pVtaCot[i]}%</td>
+      <td class="text-right"><span class="badge badge-${eCl}">${ag.pEfect[i]}%</span></td></tr>`;
+  });
+  html+=`<tr style="font-weight:700;background:#E8EDF2"><td>TOTAL</td><td class="text-right">1222</td><td class="text-right">1087</td><td class="text-right">645</td><td class="text-right">57,2%</td><td class="text-right">133</td><td class="text-right">20,6%</td><td class="text-right">70</td><td class="text-right">${fmtCOP(126834086)}</td><td class="text-right">52,6%</td><td class="text-right">5,7%</td></tr></tbody>`;
+  document.getElementById("tblAgentes").innerHTML=html;
+}
+
+// ═══════════════════════ PHASE 3 ═══════════════════════
+function buildPautaTable(){
+  const sources=[
+    {name:"Pauta (Facebook/Google)",icon:"📢"},
+    {name:"Pauta Max",icon:"📢"},
+    {name:"WhatsApp Pauta",icon:"💬"},
+    {name:"Inbound (orgánico web)",icon:"🌐"},
+    {name:"WhatsApp Orgánico",icon:"💬"},
+    {name:"Jira Orgánico",icon:"📋"},
+    {name:"Referidos",icon:"👥"},
+    {name:"Chatbot",icon:"🤖"},
+    {name:"Santander",icon:"🏦"},
+  ];
+  let html=`<thead><tr><th>Fuente</th><th class="text-center">Tipo</th><th class="text-right">Impacto CPA</th></tr></thead><tbody>`;
+  const types=[
+    ["Pauta Digital","badge-red","ALTO — Inversión directa sin retorno garantizado"],
+    ["Pauta Digital","badge-red","ALTO — Mayor inversión, leads de menor calidad"],
+    ["Pauta Digital","badge-orange","MEDIO — Leads via WhatsApp de pauta"],
+    ["Orgánico","badge-green","BAJO — Llegan solos, mejor calidad"],
+    ["Orgánico","badge-green","BAJO — Contacto natural"],
+    ["Orgánico","badge-green","BAJO — Canal interno"],
+    ["Alianza","badge-green","BAJO — Mejor conversión"],
+    ["Orgánico","badge-green","BAJO — Automatizado"],
+    ["Alianza","badge-orange","MEDIO — Alianza bancaria"],
+  ];
+  sources.forEach((s,i)=>{
+    html+=`<tr><td style="font-weight:600">${s.icon} ${s.name}</td><td class="text-center"><span class="badge ${types[i][1]}">${types[i][0]}</span></td><td class="text-right" style="font-size:0.78rem">${types[i][2]}</td></tr>`;
+  });
+  html+="</tbody>";
+  document.getElementById("tblPauta").innerHTML=html;
+}
+
+function calcCPA(){
+  const inv=parseFloat(document.getElementById("inputInversion").value)||0;
+  const vtas=parseFloat(document.getElementById("inputVentasPauta").value)||1;
+  const prima=parseFloat(document.getElementById("inputPrimaPromedio").value)||0;
+  const cpa=inv/vtas;
+  const roi=((prima*vtas)-inv)/inv*100;
+  const el=document.getElementById("cpaResult");
+  el.style.display="block";
+  el.innerHTML=`
+    <div class="grid-3">
+      <div class="cpa-box">
+        <div class="label">CPA por Venta</div>
+        <div class="big-num">${fmtCOP(cpa)}</div>
+        <div class="label">Costo de adquirir cada cliente</div>
+      </div>
+      <div class="cpa-box" style="background:linear-gradient(135deg,${roi>0?'#D1FAE5':'#FEE2E2'},${roi>0?'#A7F3D0':'#FECACA'});border-color:${roi>0?'var(--green)':'var(--red)'}">
+        <div class="label">ROI Estimado</div>
+        <div class="big-num" style="color:${roi>0?'var(--green)':'var(--red)'}">${roi.toFixed(1)}%</div>
+        <div class="label">${roi>0?"Retorno positivo":"Retorno negativo — pérdida"}</div>
+      </div>
+      <div class="cpa-box" style="background:linear-gradient(135deg,#EBF5FF,#DBEAFE);border-color:var(--zurich-blue)">
+        <div class="label">Prima Total Estimada</div>
+        <div class="big-num" style="color:var(--zurich-blue);font-size:1.5rem">${fmtCOP(prima*vtas)}</div>
+        <div class="label">vs Inversión ${fmtCOP(inv)}</div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:0.8rem;">
+      <strong>Interpretación:</strong> Con una inversión de ${fmtCOP(inv)} y ${vtas} ventas, cada cliente te cuesta ${fmtCOP(cpa)}. ${cpa>prima?"El CPA es mayor que la prima promedio: estás perdiendo dinero con cada venta de pauta.":"El CPA es menor que la prima promedio, pero revisa si los márgenes operativos lo justifican."} Para mejorar el CPA: aumenta la conversión de leads de pauta capacitando a las agentes en cierre, o reduce la inversión en canales con peor rendimiento (Pauta Max).
+    </div>`;
+}
+
+// ═══════════════════════ PHASE 5 ═══════════════════════
+const tasks = {
+  taskContacto:[
+    {text:"Revisar horarios de llamada de Tatiana Pedraza (contactabilidad 36%) — probar llamadas entre 9-11am",agent:"T.Pedraza",prio:"high",date:"Semana 1"},
+    {text:"Implementar protocolo de rellamada: si no contesta al 1er intento, rellamar en 2 horas y al día siguiente",agent:"Todas",prio:"high",date:"Semana 1"},
+    {text:"Auditar calidad de datos de contacto: ¿números correctos? ¿celular o fijo?",agent:"Supervisora",prio:"high",date:"Semana 1"},
+    {text:"Diversificar canales: agregar WhatsApp y SMS como primer contacto antes de llamar",agent:"Todas",prio:"medium",date:"Semana 2"},
+    {text:"Establecer meta de contactabilidad mínima: 55% por agente",agent:"Supervisora",prio:"medium",date:"Semana 1"},
+  ],
+  taskCierre:[
+    {text:"Sesión de capacitación en cierre comercial con Alejandra Londoño, Tatiana Pedraza y Ana Maria Robledo",agent:"3 agentes",prio:"high",date:"Semana 1"},
+    {text:"Johana Soto graba 3 llamadas exitosas para usar como material de entrenamiento (81% cierre vs cotizado)",agent:"J.Soto",prio:"high",date:"Semana 1"},
+    {text:"Crear script de venta actualizado con manejo de las 5 objeciones más comunes",agent:"Supervisora",prio:"high",date:"Semana 2"},
+    {text:"Acompañamiento en vivo: supervisora escucha llamadas de agentes con bajo cierre y da retroalimentación",agent:"Supervisora",prio:"medium",date:"Semana 2-3"},
+    {text:"Establecer meta de efectividad mínima: 5% ventas/registros por agente",agent:"Supervisora",prio:"medium",date:"Semana 1"},
+  ],
+  taskPauta:[
+    {text:"Reunión con marketing: revisar segmentación de audiencia en pauta — 291 personas no saben por qué las llamamos",agent:"Dir. Marketing",prio:"high",date:"Semana 1"},
+    {text:"Solicitar reporte de inversión vs leads por canal (Pauta, Pauta Max, WhatsApp Pauta) para calcular CPA real",agent:"Dir. Marketing",prio:"high",date:"Semana 1"},
+    {text:"Evaluar reducir inversión en Pauta Max si el CPA es más alto que el promedio",agent:"Dir. Marketing",prio:"medium",date:"Semana 2"},
+    {text:"Agregar pregunta de calificación en el formulario de pauta: \"¿Tiene vehículo? ¿Le interesa un seguro de auto?\"",agent:"Dir. Marketing",prio:"medium",date:"Semana 2"},
+    {text:"Implementar mensaje de confirmación post-registro: email/WhatsApp diciendo \"Pronto te llamaremos de Zurich Seguros\"",agent:"Dir. Marketing",prio:"medium",date:"Semana 2"},
+    {text:"Analizar por qué 356 personas quieren OTRO producto (no autos) — ¿la pauta es genérica?",agent:"Dir. Marketing",prio:"high",date:"Semana 1"},
+  ],
+  taskRenov:[
+    {text:"Investigar caída de renovaciones en abril (6,7% vs 42,7% en marzo) — ¿falta de gestión o datos?",agent:"Supervisora",prio:"high",date:"Semana 1"},
+    {text:"Implementar contacto proactivo 30 días antes de vencimiento de póliza",agent:"Todas",prio:"medium",date:"Semana 2"},
+    {text:"Crear recordatorio automático de renovación por WhatsApp/email",agent:"Dir. Marketing",prio:"medium",date:"Semana 3"},
+  ],
+  taskAudit:[
+    {text:"Auditar tipificación \"Servicio al cliente\" de Johana Soto (40 de 52 no aptos) — ¿clasificación correcta?",agent:"Supervisora",prio:"high",date:"Semana 1"},
+    {text:"Auditar tipificación \"Servicio al cliente\" de Marlen Chacon (16 de 20 no aptos)",agent:"Supervisora",prio:"medium",date:"Semana 1"},
+    {text:"Revisar si Paola Rodriguez (81 no cotizan) está manejando correctamente las objeciones o desistiendo rápido",agent:"Supervisora",prio:"medium",date:"Semana 2"},
+    {text:"Escucha aleatoria de grabaciones: 3 llamadas por agente por semana",agent:"Supervisora",prio:"medium",date:"Continuo"},
+  ]
+};
+
+function buildTasks(){
+  Object.entries(tasks).forEach(([listId, items])=>{
+    const ul=document.getElementById(listId);
+    ul.innerHTML=items.map((t,i)=>`
+      <li class="task-item" data-list="${listId}" data-idx="${i}">
+        <div class="task-check" onclick="toggleTask(this)"></div>
+        <div class="task-text">${t.text}</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.2rem;flex-shrink:0;">
+          <span class="task-agent">${t.agent}</span>
+          <span class="task-priority ${t.prio}">${t.prio==="high"?"URGENTE":t.prio==="medium"?"MEDIA":"BAJA"}</span>
+          <span class="task-date">${t.date}</span>
+        </div>
+      </li>`).join("");
+  });
+  updateProgress();
+}
+
+function toggleTask(el){
+  el.classList.toggle("checked");
+  el.closest(".task-item").classList.toggle("done");
+  updateProgress();
+}
+
+function updateProgress(){
+  const all=document.querySelectorAll(".task-check");
+  const done=document.querySelectorAll(".task-check.checked");
+  const total=all.length, d=done.length, p=total?Math.round(d/total*100):0;
+  document.getElementById("totalTasks").textContent=total;
+  document.getElementById("doneTasks").textContent=d;
+  document.getElementById("pendingTasks").textContent=total-d;
+  document.getElementById("progressPct").textContent=p+"%";
+  document.getElementById("progressBar").style.width=p+"%";
+}
+
+// ═══════════════════════ CHARTS ═══════════════════════
+const chartColors={blue:"#2167AE",dark:"#02296A",light:"#248BCC",green:"#059669",red:"#DC2626",orange:"#D97706",muted1:"#5B8DB8",muted2:"#7FB3D4",muted3:"#A8CFE8",gray:"#94A3B8"};
+
+function initCharts(){
+  // Evolution chart
+  new Chart(document.getElementById("chartEvol"),{type:"bar",
+    data:{labels:months,datasets:[
+      {label:"Registros",data:[1273,1655,1222],backgroundColor:chartColors.muted1,borderRadius:4},
+      {label:"Contactados",data:[708,887,645],backgroundColor:chartColors.muted2,borderRadius:4},
+      {label:"Ventas",data:[81,101,70],backgroundColor:chartColors.green,borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11}}}},
+      scales:{y:{beginAtZero:true,grid:{color:"#F0F0F0"}},x:{grid:{display:false}}}}
+  });
+
+  // Agent charts
+  new Chart(document.getElementById("chartVentas"),{type:"bar",
+    data:{labels:agShort,datasets:[{label:"Ventas",data:ag.ventas,backgroundColor:ag.ventas.map(v=>v>=7?chartColors.green:v>=4?chartColors.orange:chartColors.red),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:"#F0F0F0"}},y:{grid:{display:false}}}}
+  });
+
+  new Chart(document.getElementById("chartContacto"),{type:"bar",
+    data:{labels:agShort,datasets:[{label:"% Contacto",data:ag.pCont,backgroundColor:ag.pCont.map(v=>v>=55?chartColors.green:v>=45?chartColors.orange:chartColors.red),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false},annotation:{}},scales:{x:{beginAtZero:true,max:100,grid:{color:"#F0F0F0"}},y:{grid:{display:false}}}}
+  });
+
+  new Chart(document.getElementById("chartPrima"),{type:"bar",
+    data:{labels:agShort,datasets:[{label:"Prima (COP)",data:ag.prima,backgroundColor:chartColors.dark,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:"#F0F0F0"},ticks:{callback:v=>fmtCOP(v)}},y:{grid:{display:false}}}}
+  });
+
+  new Chart(document.getElementById("chartEfect"),{type:"bar",
+    data:{labels:agShort,datasets:[{label:"% Efectividad",data:ag.pEfect,backgroundColor:ag.pEfect.map(v=>v>=6?chartColors.green:v>=4?chartColors.orange:chartColors.red),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:"#F0F0F0"}},y:{grid:{display:false}}}}
+  });
+
+  // Fuentes chart
+  new Chart(document.getElementById("chartFuentes"),{type:"doughnut",
+    data:{labels:["No Aptos","No Contacto","No Cotizan","En Proceso","Ventas"],
+      datasets:[{data:[492,1498,1693,73,252],backgroundColor:[chartColors.gray,chartColors.red,"#F59E0B",chartColors.muted2,chartColors.green],borderWidth:2,borderColor:"#fff"}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11}}}}}
+  });
+
+  // Razones chart
+  new Chart(document.getElementById("chartRazones"),{type:"bar",
+    data:{labels:["No Interesado","Otro Producto","No se Registró","No Aseg. Políticas","No Venta","Otra Compañía","SOAT","No Aseg. Marca"],
+      datasets:[{label:"Casos",data:[585,417,335,195,222,129,72,58],backgroundColor:chartColors.red,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:"#F0F0F0"}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+
+  // No Registro por agente
+  new Chart(document.getElementById("chartNoRegistro"),{type:"bar",
+    data:{labels:agShort,datasets:[{label:"\"No se registró\"",data:[2,9,23,16,35,8,7,26],backgroundColor:chartColors.orange,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:"#F0F0F0"}},x:{grid:{display:false}}}}
+  });
+}
+
+// ═══════════════════════ INIT ═══════════════════════
+buildStepper();
+buildKPIs();
+buildFunnel();
+buildComparativo();
+buildAgentTable();
+buildPautaTable();
+buildTasks();
+initCharts();
+</script>
+</body>
+</html>
