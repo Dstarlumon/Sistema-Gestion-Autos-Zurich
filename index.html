@@ -23,9 +23,14 @@
         .login-card .form-group{margin-bottom:18px}
         .login-card label{display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,.55);margin-bottom:7px;letter-spacing:.5px;text-transform:uppercase}
         .login-card input,.login-card select{width:100%;padding:11px 14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;font-size:14px;color:#fff;transition:all .25s;font-family:inherit}
-        .login-card input::placeholder{color:rgba(255,255,255,.25)}
-        .login-card input:focus,.login-card select:focus{outline:none;border-color:rgba(100,160,255,.6);background:rgba(255,255,255,.1);box-shadow:0 0 0 3px rgba(33,103,174,.25)}
+        .login-card input::placeholder{color:rgba(255,255,255,.3)}
+        .login-card input:focus,.login-card select:focus{outline:none;border-color:rgba(100,160,255,.6);background:rgba(255,255,255,.08);box-shadow:0 0 0 3px rgba(33,103,174,.25)}
         .login-card select option{background:#0a1228;color:#fff}
+        /* Anular el fondo blanco del autocompletado del navegador */
+        .login-card input:-webkit-autofill,
+        .login-card input:-webkit-autofill:hover,
+        .login-card input:-webkit-autofill:focus,
+        .login-card input:-webkit-autofill:active{-webkit-box-shadow:0 0 0 1000px rgba(15,28,65,0.95) inset !important;-webkit-text-fill-color:#fff !important;caret-color:#fff;border-color:rgba(255,255,255,.15) !important;transition:background-color 9999s ease-in-out 0s}
         .login-btn{width:100%;padding:13px;background:linear-gradient(135deg,#1a4db5,#2167AE 50%,#248BCC);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;transition:all .25s;letter-spacing:.3px;box-shadow:0 4px 20px rgba(33,103,174,.4)}
         .login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(33,103,174,.55);filter:brightness(1.1)}
         .login-btn:active{transform:translateY(0)}
