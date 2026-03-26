@@ -299,6 +299,11 @@
             </div>
             <form onsubmit="doRegister(event)">
                 <div class="form-group">
+                    <label style="color:rgba(255,218,80,.9)">🌐 URL del Web App (Google Apps Script)</label>
+                    <input type="url" id="reg_api_url" placeholder="https://script.google.com/macros/s/..." required autocomplete="new-password" style="font-size:11px">
+                    <small style="color:rgba(255,255,255,.4);font-size:10px;display:block;margin-top:4px">Despliega el Apps Script como Web App y pega la URL aquí</small>
+                </div>
+                <div class="form-group">
                     <label>Nombre completo</label>
                     <input type="text" id="reg_nombre" placeholder="Ej: Carlos Pérez" required autocomplete="new-password">
                 </div>
@@ -1194,9 +1199,8 @@ let _jsonpCounter = 0;
 let _dashCharts = {};
 
 // ═══════════════════════════════════════════════════════════════
-// USER SYSTEM — REGISTRO Y AUTENTICACIÓN
+// USER SYSTEM — AUTENTICACIÓN CON GOOGLE SHEETS
 // ═══════════════════════════════════════════════════════════════
-const USERS_KEY = 'starlumon_users';
 const SESSION_KEY = 'starlumon_session';
 
 async function hashPass(password) {
@@ -1204,25 +1208,64 @@ async function hashPass(password) {
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-function getStoredUsers() {
-    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); } catch(e) { return []; }
-}
-function saveStoredUsers(users) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+// ─── API helper that works BEFORE apiUrl is initialized ───────
+async function apiUserRequest(params) {
+    const url = localStorage.getItem('zurich_api_url') || localStorage.getItem('starlumon_api_url') || '';
+    if (!url) throw new Error('NO_URL');
+    const qs = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
+    try {
+        const res = await fetch(url + '?' + qs, { redirect: 'follow' });
+        const text = await res.text();
+        return JSON.parse(text);
+    } catch(e) {
+        // JSONP fallback for cross-origin
+        return new Promise((resolve, reject) => {
+            const cbName = '_userCb_' + Date.now();
+            const timer = setTimeout(() => {
+                delete window[cbName];
+                if (sc.parentNode) sc.parentNode.removeChild(sc);
+                reject(new Error('Timeout'));
+            }, 15000);
+            window[cbName] = function(data) {
+                clearTimeout(timer);
+                delete window[cbName];
+                if (sc.parentNode) sc.parentNode.removeChild(sc);
+                resolve(data);
+            };
+            const sc = document.createElement('script');
+            sc.src = url + '?' + qs + '&callback=' + cbName;
+            sc.onerror = () => { clearTimeout(timer); reject(new Error('Error de red')); };
+            document.body.appendChild(sc);
+        });
+    }
 }
 
-function showLoginPanel() {
+// Cache the full user data (with email/phone) after login
+let _currentUserFullData = null;
+
+async function showLoginPanel() {
     document.getElementById('loginPanel').style.display = 'block';
     document.getElementById('registerPanel').style.display = 'none';
     document.getElementById('login_error').style.display = 'none';
-    // Show first-setup hint ONLY when there are no users yet
     const hint = document.getElementById('firstSetupHint');
-    if (hint) hint.style.display = getStoredUsers().length === 0 ? 'block' : 'none';
+    if (!hint) return;
+    const url = localStorage.getItem('zurich_api_url') || localStorage.getItem('starlumon_api_url') || '';
+    if (!url) { hint.style.display = 'block'; return; }
+    try {
+        const r = await apiUserRequest({ action: 'checkUsers' });
+        hint.style.display = (r.count === 0) ? 'block' : 'none';
+    } catch(e) {
+        hint.style.display = 'none';
+    }
 }
 
 function showRegisterPanel() {
     document.getElementById('loginPanel').style.display = 'none';
     document.getElementById('registerPanel').style.display = 'block';
+    // Pre-fill API URL if already saved
+    const savedUrl = localStorage.getItem('zurich_api_url') || localStorage.getItem('starlumon_api_url') || '';
+    const urlInput = document.getElementById('reg_api_url');
+    if (urlInput && savedUrl) urlInput.value = savedUrl;
 }
 
 function toggleRegisterAgent() {
@@ -1232,35 +1275,52 @@ function toggleRegisterAgent() {
 
 async function doRegister(e) {
     e.preventDefault();
-    const nombre   = document.getElementById('reg_nombre').value.trim();
-    const username = document.getElementById('reg_username').value.trim().toLowerCase();
-    const password = document.getElementById('reg_password').value;
-    const password2= document.getElementById('reg_password2').value;
-    // First user is always Coordinador — enforced server-side style
-    const users0   = getStoredUsers();
-    const rol      = users0.length === 0 ? 'Coordinador' : (document.getElementById('reg_rol')?.value || 'Agente');
-    const agente   = rol === 'Agente' ? (document.getElementById('reg_agente')?.value || nombre) : nombre;
-    const errEl    = document.getElementById('reg_error');
-
+    const nombre    = document.getElementById('reg_nombre').value.trim();
+    const username  = document.getElementById('reg_username').value.trim().toLowerCase();
+    const password  = document.getElementById('reg_password').value;
+    const password2 = document.getElementById('reg_password2').value;
+    const regApiUrl = document.getElementById('reg_api_url')?.value.trim();
+    const errEl     = document.getElementById('reg_error');
     errEl.style.display = 'none';
+
     if (!nombre || !username || !password) { errEl.textContent = 'Completa todos los campos'; errEl.style.display='block'; return; }
+    if (!regApiUrl) { errEl.textContent = 'Ingresa la URL del Web App'; errEl.style.display='block'; return; }
     if (password.length < 6) { errEl.textContent = 'La contraseña debe tener al menos 6 caracteres'; errEl.style.display='block'; return; }
     if (password !== password2) { errEl.textContent = 'Las contraseñas no coinciden'; errEl.style.display='block'; return; }
-    if (rol === 'Agente' && !agente) { errEl.textContent = 'Selecciona el agente'; errEl.style.display='block'; return; }
 
-    const users = getStoredUsers();
-    if (users.find(u => u.username === username)) {
-        errEl.textContent = 'Ese nombre de usuario ya existe'; errEl.style.display='block'; return;
+    // Save API URL first
+    localStorage.setItem('zurich_api_url', regApiUrl);
+    apiUrl = regApiUrl;
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Creando...'; }
+
+    try {
+        const hash = await hashPass(password);
+        const r = await apiUserRequest({
+            action: 'createUser',
+            nombre,
+            username,
+            passwordHash: hash,
+            rol: 'Coordinador',
+            agente: nombre,
+            email: '',
+            telefono: ''
+        });
+        if (r.status === 'ok') {
+            showToast('✅ Coordinador creado. Ahora inicia sesión.', 'success');
+            document.getElementById('login_username').value = username;
+            showLoginPanel();
+        } else {
+            errEl.textContent = r.message || 'Error al crear usuario';
+            errEl.style.display = 'block';
+        }
+    } catch(err) {
+        errEl.textContent = 'Error de conexión: ' + err.message;
+        errEl.style.display = 'block';
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Crear Coordinador Principal'; }
     }
-
-    const hash = await hashPass(password);
-    const newUser = { id: Date.now(), nombre, username, password: hash, rol, agente: rol === 'Agente' ? agente : nombre, activo: true, createdAt: new Date().toISOString() };
-    users.push(newUser);
-    saveStoredUsers(users);
-    showToast('✅ Usuario creado exitosamente. Ahora inicia sesión.', 'success');
-    document.getElementById('reg_username').value = username;
-    showLoginPanel();
-    document.getElementById('login_username').value = username;
 }
 
 async function doLogin(e) {
@@ -1272,67 +1332,81 @@ async function doLogin(e) {
 
     if (!username || !password) { errEl.textContent = 'Ingresa usuario y contraseña'; errEl.style.display='block'; return; }
 
-    const users = getStoredUsers();
-    if (users.length === 0) { errEl.textContent = 'No hay usuarios. Crea uno primero.'; errEl.style.display='block'; return; }
-
-    const hash = await hashPass(password);
-    const user = users.find(u => u.username === username && u.password === hash && u.activo !== false);
-    if (!user) { errEl.textContent = 'Usuario o contraseña incorrectos'; errEl.style.display='block'; return; }
-
-    currentUser = { id: user.id, nombre: user.nombre, username: user.username, rol: user.rol, agente: user.agente };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
-
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('appHeader').style.display = 'block';
-    document.getElementById('mainContainer').style.display = 'block';
-
-    document.getElementById('userNameDisplay').textContent = user.nombre;
-    document.getElementById('userAvatar').textContent = user.nombre.charAt(0).toUpperCase();
-    const badge = document.getElementById('userRolBadge');
-    badge.textContent = user.rol;
-    badge.className = 'role-badge ' + user.rol.toLowerCase();
-    document.getElementById('config-user-info').textContent = `${user.nombre} — @${user.username} (${user.rol})`;
-
-    if (user.rol === 'Agente') {
-        setTimeout(() => {
-            document.querySelectorAll('[id$="_agente"],[id^="g_agente"],[id^="v_agente"],[id^="c_agente"]').forEach(sel => {
-                sel.value = user.agente;
-            });
-        }, 100);
+    const url = localStorage.getItem('zurich_api_url') || localStorage.getItem('starlumon_api_url') || '';
+    if (!url) {
+        errEl.textContent = '⚠️ URL del sistema no configurada. Usa "Configurar primer acceso" para empezar.';
+        errEl.style.display = 'block';
+        document.getElementById('firstSetupHint').style.display = 'block';
+        return;
     }
 
-    if (user.rol === 'Usuario') {
-        // Solo Usuario es completamente de solo lectura — ocultar formularios
-        document.querySelectorAll('.module-tab[data-view="form"]').forEach(t => t.style.display = 'none');
-        document.querySelector('.module-tab[data-view="table"]')?.click();
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Ingresando...'; }
+
+    try {
+        const hash = await hashPass(password);
+        const r = await apiUserRequest({ action: 'loginUser', username, passwordHash: hash });
+        if (r.status !== 'ok' || !r.user) {
+            errEl.textContent = r.message || 'Usuario o contraseña incorrectos';
+            errEl.style.display = 'block';
+            return;
+        }
+        const user = r.user;
+        _currentUserFullData = user;
+
+        currentUser = { id: user.id, nombre: user.nombre, username: user.username, rol: user.rol, agente: user.agente };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('appHeader').style.display = 'block';
+        document.getElementById('mainContainer').style.display = 'block';
+
+        document.getElementById('userNameDisplay').textContent = user.nombre;
+        document.getElementById('userAvatar').innerHTML = user.nombre.charAt(0).toUpperCase();
+        const badge = document.getElementById('userRolBadge');
+        badge.textContent = user.rol;
+        badge.className = 'role-badge ' + user.rol.toLowerCase();
+        document.getElementById('config-user-info').textContent = `${user.nombre} — @${user.username} (${user.rol})`;
+
+        if (user.rol === 'Agente') {
+            setTimeout(() => {
+                document.querySelectorAll('[id$="_agente"],[id^="g_agente"],[id^="v_agente"],[id^="c_agente"]').forEach(sel => {
+                    sel.value = user.agente;
+                });
+            }, 100);
+        }
+
+        if (user.rol === 'Usuario') {
+            document.querySelectorAll('.module-tab[data-view="form"]').forEach(t => t.style.display = 'none');
+            document.querySelector('.module-tab[data-view="table"]')?.click();
+        }
+        document.body.setAttribute('data-rol', user.rol);
+
+        const configTab = document.querySelector('.nav-tab[data-module="config"]');
+        if (configTab) configTab.style.display = user.rol === 'Agente' ? 'none' : '';
+
+        document.getElementById('dropdownName').textContent = user.nombre;
+        document.getElementById('dropdownRole').textContent = user.rol + (user.agente !== user.nombre ? ' — ' + user.agente : '');
+
+        updateAvatarDisplay();
+        initializeApp();
+        renderUserMgmtTable();
+    } catch(err) {
+        errEl.textContent = 'Error de conexión: ' + err.message;
+        errEl.style.display = 'block';
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Ingresar al Sistema'; }
     }
-    // Agente puede crear registros, pero NO borrar — el CSS se encarga de ocultar delete btns
-    document.body.setAttribute('data-rol', user.rol);
-
-    // Hide Config tab for Agente role
-    const configTab = document.querySelector('.nav-tab[data-module="config"]');
-    if (configTab) configTab.style.display = user.rol === 'Agente' ? 'none' : '';
-
-    // Update dropdown header
-    document.getElementById('dropdownName').textContent = user.nombre;
-    document.getElementById('dropdownRole').textContent = user.rol + (user.agente !== user.nombre ? ' — ' + user.agente : '');
-
-    // Update avatar with stored photo
-    updateAvatarDisplay();
-
-    initializeApp();
-    renderUserMgmtTable();
 }
 
 function showLogout() {
     if (confirm('¿Deseas cerrar sesión?')) doLogout();
 }
 
-// ─── USER CHIP DROPDOWN ───
+// ─── USER CHIP DROPDOWN ───────────────────────────────────────
 function toggleUserDropdown() {
     const dd = document.getElementById('userDropdown');
     dd.classList.toggle('open');
-    // Close on outside click
     if (dd.classList.contains('open')) {
         setTimeout(() => {
             document.addEventListener('click', closeDropdownOutside, { once: true });
@@ -1346,32 +1420,25 @@ function closeDropdownOutside(e) {
     }
 }
 
-// ─── AVATAR HELPERS ───
+// ─── AVATAR HELPERS ───────────────────────────────────────────
 function updateAvatarDisplay() {
     if (!currentUser) return;
-    const stored = getStoredUsers().find(u => u.id === currentUser.id);
-    const photo = stored?.photo || null;
+    const photo = localStorage.getItem('photo_' + currentUser.id) || null;
     const initials = (currentUser.nombre || '?').charAt(0).toUpperCase();
-
-    // Header chip avatar
     const av = document.getElementById('userAvatar');
     if (photo) {
-        av.innerHTML = `<img src="${photo}" alt="avatar">`;
+        av.innerHTML = `<img src="${photo}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
     } else {
-        av.textContent = initials;
         av.innerHTML = initials;
     }
 }
 
-// ─── PROFILE MODAL ───
+// ─── PROFILE MODAL ────────────────────────────────────────────
 function openProfileModal() {
     document.getElementById('userDropdown').classList.remove('open');
     if (!currentUser) return;
-    const users = getStoredUsers();
-    const u = users.find(x => x.id === currentUser.id);
-    if (!u) return;
+    const u = _currentUserFullData || currentUser;
 
-    // Fill fields
     document.getElementById('profile_nombre').value = u.nombre || '';
     document.getElementById('profile_username').value = u.username || '';
     document.getElementById('profile_rol').value = u.rol || '';
@@ -1383,14 +1450,13 @@ function openProfileModal() {
     document.getElementById('profile_pass_confirm').value = '';
     document.getElementById('profile_error').style.display = 'none';
 
-    // Header info
     document.getElementById('profileModalName').textContent = u.nombre;
     document.getElementById('profileModalRole').textContent = u.rol + ' · @' + u.username;
 
-    // Avatar
     const avBig = document.getElementById('profileAvatarBig');
-    if (u.photo) {
-        avBig.innerHTML = `<img src="${u.photo}" alt="avatar">`;
+    const photo = localStorage.getItem('photo_' + currentUser.id);
+    if (photo) {
+        avBig.innerHTML = `<img src="${photo}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
     } else {
         avBig.textContent = (u.nombre || '?').charAt(0).toUpperCase();
     }
@@ -1413,9 +1479,7 @@ function handleAvatarUpload(event) {
     const reader = new FileReader();
     reader.onload = function(e) {
         const dataUrl = e.target.result;
-        // Update avatar preview in modal
-        document.getElementById('profileAvatarBig').innerHTML = `<img src="${dataUrl}" alt="avatar">`;
-        // Temporarily store in sessionStorage for save
+        document.getElementById('profileAvatarBig').innerHTML = `<img src="${dataUrl}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         sessionStorage.setItem('pending_avatar', dataUrl);
     };
     reader.readAsDataURL(file);
@@ -1426,10 +1490,6 @@ async function saveProfile() {
     const errEl = document.getElementById('profile_error');
     errEl.style.display = 'none';
 
-    const users = getStoredUsers();
-    const idx = users.findIndex(u => u.id === currentUser.id);
-    if (idx === -1) { showToast('Usuario no encontrado', 'error'); return; }
-
     const nombre  = document.getElementById('profile_nombre').value.trim();
     const email   = document.getElementById('profile_email').value.trim();
     const tel     = document.getElementById('profile_telefono').value.trim();
@@ -1439,46 +1499,63 @@ async function saveProfile() {
 
     if (!nombre) { errEl.textContent = 'El nombre no puede estar vacío'; errEl.style.display='block'; return; }
 
-    // Handle password change
+    let curHash = null;
+    let newHash = null;
     if (passNew || passCur) {
         if (!passCur) { errEl.textContent = 'Ingresa tu contraseña actual para cambiarla'; errEl.style.display='block'; return; }
-        const curHash = await hashPass(passCur);
-        if (curHash !== users[idx].password) { errEl.textContent = 'La contraseña actual es incorrecta'; errEl.style.display='block'; return; }
         if (passNew.length < 6) { errEl.textContent = 'La nueva contraseña debe tener al menos 6 caracteres'; errEl.style.display='block'; return; }
         if (passNew !== passCon) { errEl.textContent = 'Las contraseñas nuevas no coinciden'; errEl.style.display='block'; return; }
-        users[idx].password = await hashPass(passNew);
+        curHash = await hashPass(passCur);
+        newHash = await hashPass(passNew);
     }
 
-    // Handle avatar
-    const pendingAvatar = sessionStorage.getItem('pending_avatar');
-    if (pendingAvatar) {
-        users[idx].photo = pendingAvatar;
-        sessionStorage.removeItem('pending_avatar');
+    const saveBtn = document.querySelector('#profileModal .btn-primary');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Guardando...'; }
+
+    try {
+        const params = { action: 'updateUser', id: currentUser.id, nombre, email, telefono: tel };
+        if (newHash) { params.currentPasswordHash = curHash; params.newPasswordHash = newHash; }
+
+        const r = await apiUserRequest(params);
+        if (r.status !== 'ok') {
+            errEl.textContent = r.message || 'Error al guardar';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        // Photo stays local (too large for Sheets)
+        const pendingAvatar = sessionStorage.getItem('pending_avatar');
+        if (pendingAvatar) {
+            localStorage.setItem('photo_' + currentUser.id, pendingAvatar);
+            sessionStorage.removeItem('pending_avatar');
+        }
+
+        currentUser.nombre = nombre;
+        if (_currentUserFullData) {
+            _currentUserFullData.nombre = nombre;
+            _currentUserFullData.email  = email;
+            _currentUserFullData.telefono = tel;
+        }
+        localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+
+        document.getElementById('userNameDisplay').textContent = nombre;
+        document.getElementById('dropdownName').textContent = nombre;
+        document.getElementById('config-user-info').textContent = `${nombre} — @${currentUser.username} (${currentUser.rol})`;
+        updateAvatarDisplay();
+
+        showToast('✅ Perfil actualizado exitosamente', 'success');
+        closeProfileModal();
+    } catch(err) {
+        errEl.textContent = 'Error de conexión: ' + err.message;
+        errEl.style.display = 'block';
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar Cambios'; }
     }
-
-    users[idx].nombre   = nombre;
-    users[idx].email    = email;
-    users[idx].telefono = tel;
-
-    saveStoredUsers(users);
-
-    // Update currentUser in memory + session
-    currentUser.nombre = nombre;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
-
-    // Refresh UI
-    document.getElementById('userNameDisplay').textContent = nombre;
-    document.getElementById('userAvatar').textContent = nombre.charAt(0).toUpperCase();
-    document.getElementById('dropdownName').textContent = nombre;
-    document.getElementById('config-user-info').textContent = `${nombre} — @${users[idx].username} (${users[idx].rol})`;
-    updateAvatarDisplay();
-
-    showToast('✅ Perfil actualizado exitosamente', 'success');
-    closeProfileModal();
 }
 
 function doLogout() {
     localStorage.removeItem(SESSION_KEY);
+    _currentUserFullData = null;
     currentUser = null;
     document.getElementById('loginOverlay').style.display = 'flex';
     document.getElementById('appHeader').style.display = 'none';
@@ -1487,27 +1564,39 @@ function doLogout() {
     document.getElementById('login_error').style.display = 'none';
     document.getElementById('userDropdown')?.classList.remove('open');
     document.body.removeAttribute('data-rol');
-    // Reset config tab visibility + form tabs
     const configTab = document.querySelector('.nav-tab[data-module="config"]');
     if (configTab) configTab.style.display = '';
     document.querySelectorAll('.module-tab[data-view="form"]').forEach(t => t.style.display = '');
 }
 
-// User Management (Coordinador only)
-function renderUserMgmtTable() {
+// ─── User Management (Coordinador only) ──────────────────────
+async function renderUserMgmtTable() {
     const container = document.getElementById('userMgmtContainer');
     if (!container) return;
     if (currentUser?.rol !== 'Coordinador') { container.style.display = 'none'; return; }
     container.style.display = 'block';
-    const users = getStoredUsers();
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">⏳ Cargando usuarios...</div>';
 
-    const rows = users.length ? users.map(u => `
-        <tr>
+    let users = [];
+    try {
+        const r = await apiUserRequest({ action: 'getUsers' });
+        users = r.users || [];
+    } catch(e) {
+        container.innerHTML = `<div style="text-align:center;padding:20px;color:#e53935">❌ Error al cargar usuarios: ${e.message}</div>`;
+        return;
+    }
+
+    const rows = users.length ? users.map(u => {
+        const photo = localStorage.getItem('photo_' + u.id);
+        const avatarHtml = photo
+            ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+            : u.nombre.charAt(0).toUpperCase();
+        const isMe = String(u.id) === String(currentUser.id);
+        const isActive = u.activo !== false && u.activo !== 'false' && u.activo !== 'FALSE';
+        return `<tr>
             <td>
                 <div style="display:flex;align-items:center;gap:8px">
-                    <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003399,#2167AE);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;overflow:hidden">
-                        ${u.photo ? `<img src="${u.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : u.nombre.charAt(0).toUpperCase()}
-                    </div>
+                    <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003399,#2167AE);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;overflow:hidden">${avatarHtml}</div>
                     <div>
                         <div style="font-weight:600;font-size:13px">${u.nombre}</div>
                         <div style="font-size:11px;color:#999">@${u.username}</div>
@@ -1516,39 +1605,33 @@ function renderUserMgmtTable() {
             </td>
             <td><span class="role-badge ${u.rol.toLowerCase()}">${u.rol}</span></td>
             <td style="font-size:12px;color:#666">${u.agente || '-'}</td>
-            <td style="font-size:11px;color:#999">${u.email||''}</td>
+            <td style="font-size:11px;color:#999">${u.email || ''}</td>
             <td>
-                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:${u.activo!==false?'#2e7d32':'#c62828'}">
-                    <span style="width:7px;height:7px;border-radius:50%;background:${u.activo!==false?'#4caf50':'#e53935'};display:inline-block"></span>
-                    ${u.activo!==false?'Activo':'Inactivo'}
+                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:${isActive ? '#2e7d32' : '#c62828'}">
+                    <span style="width:7px;height:7px;border-radius:50%;background:${isActive ? '#4caf50' : '#e53935'};display:inline-block"></span>
+                    ${isActive ? 'Activo' : 'Inactivo'}
                 </span>
             </td>
             <td>
                 <div style="display:flex;gap:5px;flex-wrap:wrap">
-                    ${u.id !== currentUser.id ? `
-                        <button class="btn btn-small ${u.activo!==false?'btn-warning':'btn-success'}" onclick="toggleUserActive(${u.id})" style="${u.activo!==false?'background:#fff3e0;color:#e65100;border:1px solid #ffe0b2':''}">
-                            ${u.activo!==false?'⏸ Desactivar':'▶ Activar'}
+                    ${!isMe ? `
+                        <button class="btn btn-small ${isActive ? 'btn-warning' : 'btn-success'}" onclick="toggleUserActive('${u.id}')" style="${isActive ? 'background:#fff3e0;color:#e65100;border:1px solid #ffe0b2' : ''}">
+                            ${isActive ? '⏸ Desactivar' : '▶ Activar'}
                         </button>
-                        <button class="btn btn-small btn-danger" onclick="adminDeleteUser(${u.id})" title="Eliminar usuario">🗑</button>
+                        <button class="btn btn-small btn-danger" onclick="adminDeleteUser('${u.id}','${u.nombre.replace(/'/g,"\'")}','${u.username}')" title="Eliminar">🗑</button>
                     ` : '<span style="color:#aaa;font-size:11px;font-style:italic">Tú</span>'}
                 </div>
             </td>
-        </tr>
-    `).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">No hay usuarios registrados</td></tr>';
+        </tr>`;
+    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">No hay usuarios registrados</td></tr>';
 
-    // Create user form
     const agentOptions = AGENTS.map(a => `<option value="${a}">${a}</option>`).join('');
 
     container.innerHTML = `
         <table class="user-mgmt-table">
-            <thead>
-                <tr>
-                    <th>Usuario</th><th>Rol</th><th>Agente</th><th>Correo</th><th>Estado</th><th>Acciones</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Usuario</th><th>Rol</th><th>Agente</th><th>Correo</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>${rows}</tbody>
         </table>
-
         <div style="margin-top:20px;padding-top:16px;border-top:2px solid #E8F4FD">
             <div style="font-size:13px;font-weight:700;color:#003399;margin-bottom:12px">➕ Crear Nuevo Usuario</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
@@ -1606,31 +1689,63 @@ async function adminCreateUser() {
     if (!nombre || !username || !password) { errEl.textContent = 'Completa nombre, usuario y contraseña'; errEl.style.display='block'; return; }
     if (password.length < 6) { errEl.textContent = 'La contraseña debe tener al menos 6 caracteres'; errEl.style.display='block'; return; }
 
-    const users = getStoredUsers();
-    if (users.find(u => u.username === username)) { errEl.textContent = 'Ese nombre de usuario ya existe'; errEl.style.display='block'; return; }
+    const btn = document.querySelector('#userMgmtContainer .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Creando...'; }
 
-    const hash = await hashPass(password);
-    users.push({ id: Date.now(), nombre, username, password: hash, rol, agente: rol === 'Agente' ? agente : nombre, email, activo: true, createdAt: new Date().toISOString() });
-    saveStoredUsers(users);
-    showToast(`✅ Usuario @${username} creado exitosamente`, 'success');
-    renderUserMgmtTable();
+    try {
+        const hash = await hashPass(password);
+        const r = await apiUserRequest({
+            action: 'createUser',
+            nombre,
+            username,
+            passwordHash: hash,
+            rol,
+            agente: rol === 'Agente' ? agente : nombre,
+            email: email || '',
+            telefono: ''
+        });
+        if (r.status === 'ok') {
+            showToast(`✅ Usuario @${username} creado exitosamente`, 'success');
+            renderUserMgmtTable();
+        } else {
+            errEl.textContent = r.message || 'Error al crear usuario';
+            errEl.style.display = 'block';
+            if (btn) { btn.disabled = false; btn.textContent = '💾 Crear Usuario'; }
+        }
+    } catch(err) {
+        errEl.textContent = 'Error de conexión: ' + err.message;
+        errEl.style.display = 'block';
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Crear Usuario'; }
+    }
 }
 
-function toggleUserActive(userId) {
-    const users = getStoredUsers();
-    const u = users.find(u => u.id === userId);
-    if (u) { u.activo = u.activo === false ? true : false; saveStoredUsers(users); renderUserMgmtTable(); showToast(u.activo !== false ? '✅ Usuario activado' : '⏸ Usuario desactivado', 'info'); }
+async function toggleUserActive(userId) {
+    try {
+        const r = await apiUserRequest({ action: 'toggleUser', id: userId });
+        if (r.status === 'ok') {
+            showToast(r.activo === true || r.activo === 'TRUE' ? '✅ Usuario activado' : '⏸ Usuario desactivado', 'info');
+            renderUserMgmtTable();
+        } else {
+            showToast('Error: ' + (r.message || 'No se pudo cambiar el estado'), 'error');
+        }
+    } catch(e) {
+        showToast('Error de conexión: ' + e.message, 'error');
+    }
 }
 
-function adminDeleteUser(userId) {
-    const users = getStoredUsers();
-    const u = users.find(u => u.id === userId);
-    if (!u) return;
-    if (!confirm(`¿Eliminar permanentemente al usuario "${u.nombre}" (@${u.username})? Esta acción no se puede deshacer.`)) return;
-    const newUsers = users.filter(u => u.id !== userId);
-    saveStoredUsers(newUsers);
-    showToast(`🗑️ Usuario @${u.username} eliminado`, 'warning');
-    renderUserMgmtTable();
+async function adminDeleteUser(userId, nombre, username) {
+    if (!confirm(`¿Eliminar permanentemente al usuario "${nombre}" (@${username})? Esta acción no se puede deshacer.`)) return;
+    try {
+        const r = await apiUserRequest({ action: 'deleteUser', id: userId });
+        if (r.status === 'ok') {
+            showToast(`🗑️ Usuario @${username} eliminado`, 'warning');
+            renderUserMgmtTable();
+        } else {
+            showToast('Error: ' + (r.message || 'No se pudo eliminar'), 'error');
+        }
+    } catch(e) {
+        showToast('Error de conexión: ' + e.message, 'error');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1661,18 +1776,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show no-users warning if needed
     showLoginPanel();
 
-    // Auto-login if stored session
+    // Pre-fill username from stored session
     const stored = localStorage.getItem(SESSION_KEY);
     if (stored) {
         try {
             const u = JSON.parse(stored);
-            // Verify user still exists and is active
-            const users = getStoredUsers();
-            const found = users.find(x => x.id === u.id && x.username === u.username && x.activo !== false);
-            if (found) {
+            if (u.username) {
                 document.getElementById('login_username').value = u.username;
-                // Auto-login requires re-entering password for security; just pre-fill username
-                document.getElementById('login_error').textContent = 'Sesión previa detectada. Ingresa tu contraseña para continuar.';
+                document.getElementById('login_error').textContent = 'Sesión previa. Ingresa tu contraseña para continuar.';
                 document.getElementById('login_error').style.display = 'block';
             }
         } catch(err) {}
