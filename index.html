@@ -259,7 +259,7 @@
 </svg>
             <p>Sistema de Gestión BPO</p>
         </div>
-        <!-- ── LOGIN PANEL ── -->
+        <!-- ── LOGIN NORMAL ── -->
         <div id="loginPanel">
             <form onsubmit="doLogin(event)">
                 <div class="form-group">
@@ -270,23 +270,41 @@
                     <label>Contraseña</label>
                     <input type="password" id="login_password" placeholder="••••••••" required autocomplete="new-password">
                 </div>
-                <div id="login_error" style="color:#e53935;font-size:12px;margin-bottom:8px;display:none"></div>
+                <div id="login_error" style="font-size:12px;margin-bottom:8px;display:none"></div>
                 <button type="submit" class="login-btn">Ingresar al Sistema</button>
             </form>
-            <div class="login-divider">o</div>
-            <p class="register-link" onclick="showRegisterPanel()">➕ Crear nuevo usuario</p>
+            <!-- Solo visible la primera vez (sin usuarios registrados) -->
+            <div id="firstSetupHint" style="display:none;margin-top:16px;padding:12px 14px;background:rgba(255,200,50,.08);border:1px solid rgba(255,200,50,.22);border-radius:10px;text-align:center">
+                <p style="color:rgba(255,218,80,.9);font-size:12px;margin-bottom:10px;line-height:1.6">
+                    ⚙️ <strong>Primera configuración</strong><br>
+                    No hay usuarios en el sistema.<br>Crea el Coordinador principal.
+                </p>
+                <button onclick="showRegisterPanel()" style="background:rgba(255,200,50,.12);border:1px solid rgba(255,200,50,.3);color:rgba(255,220,80,.95);border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;width:100%;transition:all .2s">
+                    🔑 Configurar primer acceso
+                </button>
+            </div>
+            <p style="color:rgba(255,255,255,.22);font-size:11px;text-align:center;margin-top:16px;line-height:1.5">
+                ¿No tienes acceso?<br>Contacta a tu Coordinador.
+            </p>
         </div>
 
-        <!-- ── REGISTER PANEL ── -->
+        <!-- ── PRIMER ACCESO — solo cuando no hay usuarios ── -->
         <div id="registerPanel" style="display:none">
+            <div style="text-align:center;margin-bottom:16px;padding:10px 14px;background:rgba(255,200,50,.07);border:1px solid rgba(255,200,50,.2);border-radius:8px">
+                <p style="color:rgba(255,218,80,.85);font-size:11px;line-height:1.6">
+                    🔑 <strong>Configuración inicial del sistema</strong><br>
+                    Esta cuenta será el <strong>Coordinador principal</strong>.<br>
+                    Los demás usuarios se crean desde el panel de administración.
+                </p>
+            </div>
             <form onsubmit="doRegister(event)">
                 <div class="form-group">
                     <label>Nombre completo</label>
-                    <input type="text" id="reg_nombre" placeholder="Ej: Johana Soto" required>
+                    <input type="text" id="reg_nombre" placeholder="Ej: Carlos Pérez" required autocomplete="new-password">
                 </div>
                 <div class="form-group">
-                    <label>Usuario (para login)</label>
-                    <input type="text" id="reg_username" placeholder="ej: johana.soto" required autocomplete="new-password">
+                    <label>Usuario (para iniciar sesión)</label>
+                    <input type="text" id="reg_username" placeholder="ej: carlos.perez" required autocomplete="new-password">
                 </div>
                 <div class="form-group">
                     <label>Contraseña</label>
@@ -296,22 +314,15 @@
                     <label>Confirmar contraseña</label>
                     <input type="password" id="reg_password2" placeholder="Repite la contraseña" required autocomplete="new-password">
                 </div>
-                <div class="form-group">
-                    <label>Rol</label>
-                    <select id="reg_rol" onchange="toggleRegisterAgent()">
-                        <option value="Agente">Agente</option>
-                        <option value="Coordinador">Coordinador</option>
-                        <option value="Usuario">Usuario (Solo lectura)</option>
-                    </select>
-                </div>
-                <div class="form-group" id="reg_agente_group">
-                    <label>Nombre del agente en el sistema</label>
+                <!-- Rol fijo Coordinador — campos ocultos para compatibilidad con doRegister() -->
+                <input type="hidden" id="reg_rol" value="Coordinador">
+                <div class="form-group" id="reg_agente_group" style="display:none">
                     <select id="reg_agente"></select>
                 </div>
-                <div id="reg_error" style="color:#e53935;font-size:12px;margin-bottom:8px;display:none"></div>
-                <button type="submit" class="login-btn">Crear Cuenta</button>
+                <div id="reg_error" style="font-size:12px;margin-bottom:8px;display:none;background:rgba(255,80,80,.1);padding:7px 10px;border-radius:6px;border:1px solid rgba(255,80,80,.2)"></div>
+                <button type="submit" class="login-btn">🚀 Crear Coordinador Principal</button>
             </form>
-            <p class="register-link" onclick="showLoginPanel()">← Volver al login</p>
+            <p class="register-link" onclick="showLoginPanel()">← Volver</p>
         </div>
     </div>
 </div>
@@ -1203,13 +1214,10 @@ function saveStoredUsers(users) {
 function showLoginPanel() {
     document.getElementById('loginPanel').style.display = 'block';
     document.getElementById('registerPanel').style.display = 'none';
-    const users = getStoredUsers();
-    if (users.length === 0) {
-        document.getElementById('login_error').style.display = 'block';
-        document.getElementById('login_error').textContent = 'No hay usuarios registrados. Crea el primero.';
-    } else {
-        document.getElementById('login_error').style.display = 'none';
-    }
+    document.getElementById('login_error').style.display = 'none';
+    // Show first-setup hint ONLY when there are no users yet
+    const hint = document.getElementById('firstSetupHint');
+    if (hint) hint.style.display = getStoredUsers().length === 0 ? 'block' : 'none';
 }
 
 function showRegisterPanel() {
@@ -1228,8 +1236,10 @@ async function doRegister(e) {
     const username = document.getElementById('reg_username').value.trim().toLowerCase();
     const password = document.getElementById('reg_password').value;
     const password2= document.getElementById('reg_password2').value;
-    const rol      = document.getElementById('reg_rol').value;
-    const agente   = rol === 'Agente' ? document.getElementById('reg_agente').value : nombre;
+    // First user is always Coordinador — enforced server-side style
+    const users0   = getStoredUsers();
+    const rol      = users0.length === 0 ? 'Coordinador' : (document.getElementById('reg_rol')?.value || 'Agente');
+    const agente   = rol === 'Agente' ? (document.getElementById('reg_agente')?.value || nombre) : nombre;
     const errEl    = document.getElementById('reg_error');
 
     errEl.style.display = 'none';
@@ -1291,13 +1301,12 @@ async function doLogin(e) {
         }, 100);
     }
 
-    if (user.rol === 'Usuario' || user.rol === 'Agente') {
-        // Hide "Nuevo Registro" tabs — read-only mode for both Usuario and Agente
+    if (user.rol === 'Usuario') {
+        // Solo Usuario es completamente de solo lectura — ocultar formularios
         document.querySelectorAll('.module-tab[data-view="form"]').forEach(t => t.style.display = 'none');
-        // Switch to table view
         document.querySelector('.module-tab[data-view="table"]')?.click();
     }
-    // Mark body with role class so CSS can hide delete buttons
+    // Agente puede crear registros, pero NO borrar — el CSS se encarga de ocultar delete btns
     document.body.setAttribute('data-rol', user.rol);
 
     // Hide Config tab for Agente role
@@ -1639,13 +1648,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ensure form autocomplete off
     document.querySelectorAll('#loginPanel form, #registerPanel form').forEach(f => f.setAttribute('autocomplete','off'));
 
-    // Populate register agent select
+    // Populate register agent select (hidden for first-setup flow)
     const regSel = document.getElementById('reg_agente');
-    AGENTS.forEach(a => {
-        const o = document.createElement('option');
-        o.value = a; o.textContent = a;
-        regSel.appendChild(o);
-    });
+    if (regSel && regSel.tagName === 'SELECT') {
+        AGENTS.forEach(a => {
+            const o = document.createElement('option');
+            o.value = a; o.textContent = a;
+            regSel.appendChild(o);
+        });
+    }
 
     // Show no-users warning if needed
     showLoginPanel();
