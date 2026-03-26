@@ -4,7 +4,13 @@ import { Providers } from "@/components/layout/providers";
 
 export const metadata: Metadata = {
   title: "BMG+ CRM",
-  description: "BMG+ Customer Relationship Management System",
+  description: "BMG+ — Plataforma de Gestión BPO",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/images/bmg-plus-icon.svg',
+  },
 };
 
 export default function RootLayout({
