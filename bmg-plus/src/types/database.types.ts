@@ -17,6 +17,7 @@ export type Database = {
       agent_pauses: {
         Row: {
           agent_id: string
+          duration_seconds: number | null
           ended_at: string | null
           id: string
           pause_type: Database["public"]["Enums"]["pause_type"]
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           agent_id: string
+          duration_seconds?: number | null
           ended_at?: string | null
           id?: string
           pause_type: Database["public"]["Enums"]["pause_type"]
@@ -31,6 +33,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string
+          duration_seconds?: number | null
           ended_at?: string | null
           id?: string
           pause_type?: Database["public"]["Enums"]["pause_type"]
@@ -372,6 +375,7 @@ export type Database = {
           next_contact_at: string | null
           num_cotizacion: string | null
           observacion: string | null
+          organization_id: string
           retry_notified: boolean | null
           retry_scheduled_at: string | null
           tipificacion_id: string
@@ -390,6 +394,7 @@ export type Database = {
           next_contact_at?: string | null
           num_cotizacion?: string | null
           observacion?: string | null
+          organization_id: string
           retry_notified?: boolean | null
           retry_scheduled_at?: string | null
           tipificacion_id: string
@@ -408,6 +413,7 @@ export type Database = {
           next_contact_at?: string | null
           num_cotizacion?: string | null
           observacion?: string | null
+          organization_id?: string
           retry_notified?: boolean | null
           retry_scheduled_at?: string | null
           tipificacion_id?: string
@@ -440,6 +446,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gestiones_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -725,6 +738,7 @@ export type Database = {
           nombre: string
           num_poliza_original: string | null
           observacion: string | null
+          organization_id: string
           placa: string | null
           razon_no_renovacion: string | null
           se_renovo: Database["public"]["Enums"]["renewal_status"] | null
@@ -744,6 +758,7 @@ export type Database = {
           nombre: string
           num_poliza_original?: string | null
           observacion?: string | null
+          organization_id: string
           placa?: string | null
           razon_no_renovacion?: string | null
           se_renovo?: Database["public"]["Enums"]["renewal_status"] | null
@@ -763,6 +778,7 @@ export type Database = {
           nombre?: string
           num_poliza_original?: string | null
           observacion?: string | null
+          organization_id?: string
           placa?: string | null
           razon_no_renovacion?: string | null
           se_renovo?: Database["public"]["Enums"]["renewal_status"] | null
@@ -799,6 +815,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "renewals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sales: {
@@ -819,6 +842,7 @@ export type Database = {
           medio_pago: string | null
           nombre_cliente: string
           num_poliza: string | null
+          organization_id: string
           placa: string | null
           telefono: string | null
           tipo_seguro: string | null
@@ -841,6 +865,7 @@ export type Database = {
           medio_pago?: string | null
           nombre_cliente: string
           num_poliza?: string | null
+          organization_id: string
           placa?: string | null
           telefono?: string | null
           tipo_seguro?: string | null
@@ -863,6 +888,7 @@ export type Database = {
           medio_pago?: string | null
           nombre_cliente?: string
           num_poliza?: string | null
+          organization_id?: string
           placa?: string | null
           telefono?: string | null
           tipo_seguro?: string | null
@@ -902,6 +928,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

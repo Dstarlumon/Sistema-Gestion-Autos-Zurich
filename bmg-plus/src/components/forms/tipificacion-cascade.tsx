@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 interface TipificacionCascadeProps {
   campaignId?: string | null
   value?: string // tipificacion_id
-  onChange: (tipificacionId: string, rootCategory: string) => void
+  onChange: (tipificacionId: string, rootCategory: string, leafName: string) => void
   error?: string
 }
 
@@ -112,16 +112,28 @@ export function TipificacionCascade({
     [tipificaciones]
   )
 
+  // Get any node's name by ID
+  const getNodeName = useCallback(
+    (nodeId: string | null): string => {
+      if (!nodeId) return ''
+      const node = (tipificaciones as TipificacionNode[]).find(
+        (t) => t.id === nodeId
+      )
+      return node?.name ?? ''
+    },
+    [tipificaciones]
+  )
+
   // Emit the deepest selected ID
   const emitChange = useCallback(
     (l1: string | null, l2: string | null, l3: string | null) => {
       const deepest = l3 || l2 || l1
       if (deepest) {
         const rootId = l1
-        onChange(deepest, getRootCategoryName(rootId))
+        onChange(deepest, getRootCategoryName(rootId), getNodeName(deepest))
       }
     },
-    [onChange, getRootCategoryName]
+    [onChange, getRootCategoryName, getNodeName]
   )
 
   const handleLevel1Change = useCallback(
@@ -134,10 +146,11 @@ export function TipificacionCascade({
       const children = childrenMap.get(newValue) || []
       if (children.length === 0) {
         const rootName = getRootCategoryName(newValue)
-        onChange(newValue, rootName)
+        const leafName = getNodeName(newValue)
+        onChange(newValue, rootName, leafName)
       }
     },
-    [childrenMap, onChange, getRootCategoryName]
+    [childrenMap, onChange, getRootCategoryName, getNodeName]
   )
 
   const handleLevel2Change = useCallback(

@@ -38,8 +38,8 @@ interface CommandPaletteProps {
 
 interface LeadResult {
   id: string
-  full_name: string
-  phone: string | null
+  nombre: string
+  telefono: string | null
   status: string
   campaigns: { name: string }[] | null
 }
@@ -85,8 +85,8 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       // Search by name (ilike) or phone (ilike)
       const { data, error } = await supabase
         .from('leads')
-        .select('id, full_name, phone, status, campaigns(name)')
-        .or(`full_name.ilike.%${query}%,phone.ilike.%${query}%`)
+        .select('id, nombre, telefono, status, campaigns(name)')
+        .or(`nombre.ilike.%${query}%,telefono.ilike.%${query}%`)
         .limit(8)
 
       if (!error && data) {
@@ -154,14 +154,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 {leads.map((lead) => (
                   <CommandItem
                     key={lead.id}
-                    value={`lead-${lead.full_name}-${lead.phone ?? ''}`}
+                    value={`lead-${lead.nombre}-${lead.telefono ?? ''}`}
                     onSelect={() => handleSelect(`/gestion/${lead.id}`)}
                   >
                     <User className="mr-2 size-4 text-muted-foreground" />
                     <div className="flex flex-col">
-                      <span className="text-sm">{lead.full_name}</span>
+                      <span className="text-sm">{lead.nombre}</span>
                       <span className="text-xs text-muted-foreground">
-                        {lead.phone ?? 'Sin telefono'}
+                        {lead.telefono ?? 'Sin telefono'}
                         {lead.campaigns?.[0]?.name ? ` · ${lead.campaigns[0].name}` : ''}
                       </span>
                     </div>

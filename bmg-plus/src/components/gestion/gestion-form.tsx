@@ -88,14 +88,15 @@ const MEDIO_PAGO_OPTIONS = [
 
 const expandCollapseTransition = { duration: 0.25 }
 
-/** Map root category to lead_status for DB update */
-function mapCategoryToLeadStatus(rootCategory: string): string | null {
-  const upper = rootCategory.toUpperCase()
-  if (upper.includes('NO CONTACTO')) return 'contactado'
-  if (upper.includes('NO APTO')) return 'no_apto'
-  if (upper.includes('NO COTIZA')) return 'cerrado'
-  if (upper.includes('POSITIVO')) return 'en_proceso'
-  return null
+/** Map tipificacion category to lead_status for DB update */
+function mapCategoryToLeadStatus(rootCategory: string, leafName: string): string | null {
+  if (leafName.toLowerCase().includes('venta')) return 'venta'
+  if (leafName.toLowerCase().includes('en proceso') || leafName.toLowerCase().includes('pendiente')) return 'en_proceso'
+  if (rootCategory === 'NO APTO') return 'no_apto'
+  if (rootCategory.includes('NO COTIZA')) return 'cerrado'
+  if (rootCategory === 'NO CONTACTO') return null // don't change status
+  if (rootCategory === 'POSITIVO') return 'cotizado'
+  return null // unknown — don't change
 }
 
 export function GestionForm({
@@ -147,10 +148,10 @@ export function GestionForm({
   const cotizacionValue = watch('cotizacion')
 
   const handleTipificacionChange = useCallback(
-    (tipificacionId: string, rootCat: string) => {
+    (tipificacionId: string, rootCat: string, leafName: string) => {
       setValue('tipificacion_id', tipificacionId, { shouldValidate: true })
       setRootCategory(rootCat)
-      setTipificacionName(rootCat)
+      setTipificacionName(leafName)
     },
     [setValue]
   )
@@ -202,9 +203,7 @@ export function GestionForm({
       }
 
       // 4. Update lead status based on tipificacion category
-      const newStatus = isVenta
-        ? 'venta'
-        : mapCategoryToLeadStatus(rootCategory)
+      const newStatus = mapCategoryToLeadStatus(rootCategory, tipificacionName)
 
       if (newStatus) {
         await supabase
