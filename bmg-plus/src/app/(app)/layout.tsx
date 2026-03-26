@@ -1,13 +1,23 @@
 'use client'
 
+import { useState, useCallback } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
+import { CommandPalette } from '@/components/shared/command-palette'
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isLoading = useAuthStore((s) => s.isLoading)
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+
+  const openCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(true)
+  }, [])
+
+  useKeyboardShortcuts(openCommandPalette)
 
   // Loading skeleton while auth initializes
   if (isLoading) {
@@ -34,11 +44,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         className="flex-1 flex flex-col min-h-screen transition-[margin-left] duration-200 ease-in-out"
         style={{ marginLeft: collapsed ? 64 : 260 }}
       >
-        <Header />
+        <Header onOpenCommandPalette={openCommandPalette} />
         <main className="flex-1 p-5 bg-surface-container-low overflow-y-auto">
           {children}
         </main>
       </div>
+
+      {/* Global command palette */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+      />
     </div>
   )
 }

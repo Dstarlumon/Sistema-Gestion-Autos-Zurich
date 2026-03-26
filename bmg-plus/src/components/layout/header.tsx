@@ -15,6 +15,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useCampaignStore } from '@/stores/campaign-store'
 import { createClient } from '@/lib/supabase/client'
 import { getInitials } from '@/lib/utils/format'
+import { DarkModeToggle } from '@/components/shared/dark-mode-toggle'
 
 interface Campaign {
   id: string
@@ -23,7 +24,11 @@ interface Campaign {
   color: string | null
 }
 
-export function Header() {
+interface HeaderProps {
+  onOpenCommandPalette?: () => void
+}
+
+export function Header({ onOpenCommandPalette }: HeaderProps) {
   const { user, signOut } = useAuth()
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const { activeCampaignId, setActiveCampaign } = useCampaignStore()
@@ -76,7 +81,7 @@ export function Header() {
     : ''
 
   return (
-    <header className="sticky top-0 z-30 h-14 bg-white shadow-ambient flex items-center px-5 gap-4">
+    <header className="sticky top-0 z-30 h-14 bg-white dark:bg-card shadow-ambient flex items-center px-5 gap-4">
       {/* Left: toggle + breadcrumb */}
       <button
         onClick={toggleSidebar}
@@ -88,16 +93,19 @@ export function Header() {
 
       <span className="text-sm text-slate-400 hidden sm:block">Dashboard</span>
 
-      {/* Search */}
+      {/* Search — opens command palette */}
       <div className="flex-1 max-w-md mx-4">
-        <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar leads, campanias..."
-            className="w-full h-8 pl-9 pr-3 rounded-lg bg-slate-50 text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-colors"
-          />
-        </div>
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          className="w-full h-8 flex items-center gap-2 pl-3 pr-3 rounded-lg bg-slate-50 dark:bg-white/5 text-sm text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left cursor-pointer"
+        >
+          <Search size={15} className="shrink-0" />
+          <span className="flex-1 truncate">Buscar leads, acciones...</span>
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
+            Ctrl K
+          </kbd>
+        </button>
       </div>
 
       {/* Right side controls */}
@@ -116,9 +124,12 @@ export function Header() {
           ))}
         </select>
 
+        {/* Dark mode toggle */}
+        <DarkModeToggle />
+
         {/* Notifications */}
         <button
-          className="relative p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          className="relative p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-white/10 transition-colors"
           aria-label="Notificaciones"
           title="Notificaciones"
         >
