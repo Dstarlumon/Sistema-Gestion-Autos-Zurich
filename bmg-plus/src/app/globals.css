@@ -1,0 +1,314 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   Tailwind v4 Theme — "Digital Architect" Design System
+   ============================================================ */
+@theme inline {
+  /* --- Font families ---------------------------------------- */
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+  --font-heading: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* --- shadcn/ui color mapping (keep existing) -------------- */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* --- Sidebar colors (keep existing) ----------------------- */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* --- Design-system surface colors ------------------------- */
+  --color-surface: var(--da-surface);
+  --color-surface-container-low: var(--da-surface-container-low);
+  --color-surface-container: var(--da-surface-container);
+  --color-surface-container-highest: var(--da-surface-container-highest);
+  --color-surface-container-lowest: var(--da-surface-container-lowest);
+  --color-surface-variant: var(--da-surface-variant);
+  --color-on-surface: var(--da-on-surface);
+  --color-outline-variant: var(--da-outline-variant);
+
+  /* --- Design-system brand colors --------------------------- */
+  --color-brand-primary: var(--da-primary);
+  --color-brand-primary-container: var(--da-primary-container);
+
+  /* --- Campaign accent colors ------------------------------- */
+  --color-campaign-autos: #3b82f6;
+  --color-campaign-hogar: #059669;
+  --color-campaign-pymes: #d97706;
+  --color-campaign-directv: #dc2626;
+
+  /* --- Radius (keep existing shadcn scale) ------------------ */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ============================================================
+   CSS Custom Properties — Light theme (default)
+   ============================================================ */
+:root {
+  /* --- shadcn/ui variables ---------------------------------- */
+  --background: #faf8ff;
+  --foreground: #131b2e;
+  --card: #ffffff;
+  --card-foreground: #131b2e;
+  --popover: #ffffff;
+  --popover-foreground: #131b2e;
+  --primary: #00288e;
+  --primary-foreground: #ffffff;
+  --secondary: #dae2fd;
+  --secondary-foreground: #131b2e;
+  --muted: #f2f3ff;
+  --muted-foreground: #5b6178;
+  --accent: #eaedff;
+  --accent-foreground: #131b2e;
+  --destructive: #dc2626;
+  --border: color-mix(in srgb, #c4c5d5 15%, transparent);
+  --input: color-mix(in srgb, #c4c5d5 15%, transparent);
+  --ring: #00288e;
+  --chart-1: #3b82f6;
+  --chart-2: #059669;
+  --chart-3: #d97706;
+  --chart-4: #dc2626;
+  --chart-5: #1e40af;
+  --radius: 0.625rem;
+
+  /* --- Sidebar ---------------------------------------------- */
+  --sidebar: #f2f3ff;
+  --sidebar-foreground: #131b2e;
+  --sidebar-primary: #00288e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaedff;
+  --sidebar-accent-foreground: #131b2e;
+  --sidebar-border: color-mix(in srgb, #c4c5d5 15%, transparent);
+  --sidebar-ring: #00288e;
+
+  /* --- Digital Architect surface hierarchy ------------------- */
+  --da-surface: #faf8ff;
+  --da-surface-container-lowest: #ffffff;
+  --da-surface-container-low: #f2f3ff;
+  --da-surface-container: #eaedff;
+  --da-surface-container-highest: #dae2fd;
+  --da-surface-variant: #dae2fd;
+  --da-on-surface: #131b2e;
+  --da-outline-variant: #c4c5d5;
+
+  /* --- Digital Architect brand ------------------------------ */
+  --da-primary: #00288e;
+  --da-primary-container: #1e40af;
+
+  /* --- Ambient shadow --------------------------------------- */
+  --shadow-ambient: 0 20px 40px -12px rgba(19, 27, 46, 0.06);
+
+  /* --- Ghost border ----------------------------------------- */
+  --ghost-border: 1px solid color-mix(in srgb, #c4c5d5 15%, transparent);
+}
+
+/* ============================================================
+   CSS Custom Properties — Dark theme
+   ============================================================ */
+.dark {
+  --background: #0c0f1a;
+  --foreground: #e2e4f0;
+  --card: #151929;
+  --card-foreground: #e2e4f0;
+  --popover: #151929;
+  --popover-foreground: #e2e4f0;
+  --primary: #7da0ff;
+  --primary-foreground: #001650;
+  --secondary: #1e2744;
+  --secondary-foreground: #e2e4f0;
+  --muted: #1a2038;
+  --muted-foreground: #8e93af;
+  --accent: #1e2744;
+  --accent-foreground: #e2e4f0;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #7da0ff;
+  --chart-1: #60a5fa;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+  --chart-5: #818cf8;
+
+  --sidebar: #151929;
+  --sidebar-foreground: #e2e4f0;
+  --sidebar-primary: #7da0ff;
+  --sidebar-primary-foreground: #e2e4f0;
+  --sidebar-accent: #1e2744;
+  --sidebar-accent-foreground: #e2e4f0;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #7da0ff;
+
+  --da-surface: #0c0f1a;
+  --da-surface-container-lowest: #080b14;
+  --da-surface-container-low: #151929;
+  --da-surface-container: #1a2038;
+  --da-surface-container-highest: #1e2744;
+  --da-surface-variant: #1e2744;
+  --da-on-surface: #e2e4f0;
+  --da-outline-variant: #3a4060;
+
+  --da-primary: #7da0ff;
+  --da-primary-container: #3b6cdf;
+
+  --shadow-ambient: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
+  --ghost-border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================
+   Base Layer
+   ============================================================ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans antialiased;
+  }
+
+  body {
+    @apply bg-surface text-on-surface min-h-full;
+    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ============================================================
+   Typography Tokens
+   ============================================================ */
+@layer base {
+  .text-display-md {
+    font-weight: 800;
+    font-size: 2.75rem;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .text-headline-sm {
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+  }
+
+  .text-title-md {
+    font-weight: 600;
+    font-size: 1.125rem;
+    letter-spacing: 0;
+    line-height: 1.35;
+  }
+
+  .text-body-md {
+    font-weight: 400;
+    font-size: 0.875rem;
+    letter-spacing: 0;
+    line-height: 1.5;
+  }
+
+  .text-label-sm {
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+}
+
+/* ============================================================
+   Utility Classes — Digital Architect
+   ============================================================ */
+@layer utilities {
+  /* Tabular numbers for financial/numeric data */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Glassmorphism for floating elements (modals, dropdowns, tooltips) */
+  .glass {
+    background: color-mix(in srgb, var(--da-surface-variant) 70%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .glass-sm {
+    background: color-mix(in srgb, var(--da-surface-variant) 70%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-lg {
+    background: color-mix(in srgb, var(--da-surface-variant) 70%, transparent);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* Ambient shadow — the whisper of light */
+  .shadow-ambient {
+    box-shadow: var(--shadow-ambient);
+  }
+
+  /* Ghost border — accessibility fallback */
+  .ghost-border {
+    border: var(--ghost-border);
+  }
+
+  /* Primary gradient for high-impact CTAs */
+  .gradient-primary {
+    background: linear-gradient(135deg, var(--da-primary), var(--da-primary-container));
+  }
+
+  /* Campaign accent left-border glow (for Lead Insight Chips) */
+  .accent-autos {
+    border-left: 2px solid #3b82f6;
+  }
+  .accent-hogar {
+    border-left: 2px solid #059669;
+  }
+  .accent-pymes {
+    border-left: 2px solid #d97706;
+  }
+  .accent-directv {
+    border-left: 2px solid #dc2626;
+  }
+}
