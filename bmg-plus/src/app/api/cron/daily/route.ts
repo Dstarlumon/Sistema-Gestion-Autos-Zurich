@@ -1,6 +1,110 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+async function runRetryCheck(supabase: ReturnType<typeof createAdminClient>) {
+  // Find overdue retries
+  const { data: overdue } = await supabase
+    .from('gestiones')
+    .select('id, lead_id, agent_id, retry_scheduled_at')
+    .lte('retry_scheduled_at', new Date().toISOString())
+    .eq('retry_notified', false)
+    .not('retry_scheduled_at', 'is', null)
+    .limit(200)
+
+  let processedRetries = 0
+  if (overdue && overdue.length > 0) {
+    const notifications = overdue
+      .filter((g) => g.agent_id)
+      .map((g) => ({
+        user_id: g.agent_id!,
+        title: 'Reintento programado vencido',
+        message: 'Tienes un reintento pendiente que requiere atencion',
+        type: 'retry_overdue',
+        link: `/gestion/${g.lead_id}`,
+        is_read: false,
+      }))
+
+    if (notifications.length > 0) {
+      await supabase.from('notifications').insert(notifications)
+    }
+
+    const ids = overdue.map((g) => g.id)
+    await supabase
+      .from('gestiones')
+      .update({ retry_notified: true })
+      .in('id', ids)
+
+    processedRetries = overdue.length
+  }
+  return processedRetries
+}
+
+async function runSlaCheck(supabase: ReturnType<typeof createAdminClient>) {
+  const defaultSlaHours = 24
+  let slaHours = defaultSlaHours
+
+  const { data: orgData } = await supabase
+    .from('organizations')
+    .select('config')
+    .limit(1)
+    .single()
+
+  if (orgData?.config && typeof orgData.config === 'object' && 'sla_hours' in (orgData.config as Record<string, unknown>)) {
+    slaHours = Number((orgData.config as Record<string, unknown>).sla_hours) || defaultSlaHours
+  }
+
+  const slaThreshold = new Date(
+    Date.now() - slaHours * 60 * 60 * 1000,
+  ).toISOString()
+
+  const { data: breachedLeads } = await supabase
+    .from('leads')
+    .select('id, agent_id, campaign_id')
+    .eq('status', 'nuevo')
+    .lte('created_at', slaThreshold)
+    .limit(100)
+
+  let slaBreaches = 0
+  if (breachedLeads && breachedLeads.length > 0) {
+    const { data: supervisors } = await supabase
+      .from('profiles')
+      .select('id')
+      .in('role', ['supervisor', 'coordinador'])
+      .eq('is_active', true)
+      .limit(20)
+
+    if (supervisors && supervisors.length > 0) {
+      const notifications = supervisors.map((s) => ({
+        user_id: s.id,
+        title: 'Alerta SLA',
+        message: `${breachedLeads.length} lead(s) superaron el tiempo SLA de ${slaHours}h sin gestion`,
+        type: 'sla_breach',
+        link: '/gestion',
+        is_read: false,
+      }))
+      await supabase.from('notifications').insert(notifications)
+    }
+
+    const agentNotifs = breachedLeads
+      .filter((l) => l.agent_id)
+      .map((l) => ({
+        user_id: l.agent_id!,
+        title: 'Lead sin gestionar',
+        message: `Tienes un lead que ha superado el SLA de ${slaHours}h`,
+        type: 'sla_breach',
+        link: `/gestion/${l.id}`,
+        is_read: false,
+      }))
+
+    if (agentNotifs.length > 0) {
+      await supabase.from('notifications').insert(agentNotifs)
+    }
+
+    slaBreaches = breachedLeads.length
+  }
+  return { slaBreaches, slaHours }
+}
+
 export async function GET(request: NextRequest) {
   // Verify cron secret
   const authHeader = request.headers.get('authorization')
@@ -9,6 +113,10 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createAdminClient()
+
+  // --- Run retry-check and SLA logic (consolidated from separate crons for Hobby plan) ---
+  const processedRetries = await runRetryCheck(supabase)
+  const { slaBreaches, slaHours } = await runSlaCheck(supabase)
 
   // 1. Agent scorecard generation — compute daily stats per agent
   const yesterday = new Date()
@@ -137,6 +245,8 @@ export async function GET(request: NextRequest) {
     .lt('created_at', thirtyDaysAgo)
 
   return NextResponse.json({
+    retry_check: { processed_retries: processedRetries },
+    sla_check: { sla_breaches: slaBreaches, sla_hours: slaHours },
     scorecards_generated: scorecardsGenerated,
     notifications_cleaned: deletedNotifs || 0,
     date_processed: yesterday.toISOString().split('T')[0],

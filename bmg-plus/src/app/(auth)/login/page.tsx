@@ -10,8 +10,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
 
 const loginSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email('Ingresa un email válido'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
 })
 
 type LoginFormData = z.infer<typeof loginSchema>
@@ -90,7 +90,7 @@ export default function LoginPage() {
           {/* Email field */}
           <div className="space-y-1.5">
             <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
-              Work Email
+              Correo Electrónico
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -111,7 +111,7 @@ export default function LoginPage() {
               </div>
               <input
                 type="email"
-                placeholder="architect@bmg.plus"
+                placeholder="usuario@bmgplus.com"
                 autoComplete="email"
                 {...register('email')}
                 className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
@@ -126,7 +126,7 @@ export default function LoginPage() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
-                Security Key
+                Contraseña
               </label>
               <button
                 type="button"
@@ -135,7 +135,7 @@ export default function LoginPage() {
                 className="text-[#66cfd0] text-xs hover:text-[#66cfd0]/80 transition-colors disabled:opacity-50"
                 tabIndex={-1}
               >
-                {isResetting ? 'Sending...' : 'Reset Access'}
+                {isResetting ? 'Enviando...' : 'Recuperar Contraseña'}
               </button>
             </div>
             <div className="relative">
@@ -213,7 +213,7 @@ export default function LoginPage() {
               </svg>
             ) : (
               <>
-                Initialize Core
+                Iniciar Sesión
                 <span aria-hidden="true">&rarr;</span>
               </>
             )}
@@ -229,18 +229,18 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-white/20 text-xs text-center mt-6 tracking-wider uppercase">
-          System v1.0 | Encrypted Auth
+          SISTEMA v1.0 | AUTH CIFRADO
         </p>
       </div>
 
       {/* Bottom link */}
       <p className="text-white/40 text-sm mt-8">
-        Don&apos;t have an architect account?{' '}
+        ¿No tienes cuenta?{' '}
         <Link
           href="/register"
           className="text-[#66cfd0] hover:text-[#66cfd0]/80 font-medium transition-colors"
         >
-          Request Deployment
+          Crear Cuenta
         </Link>
       </p>
     </div>

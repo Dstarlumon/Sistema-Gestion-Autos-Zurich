@@ -14,15 +14,15 @@ export async function GET(request: NextRequest) {
   const defaultSlaHours = 24
   let slaHours = defaultSlaHours
 
-  // Try to fetch SLA config
-  const { data: config } = await supabase
-    .from('organization_config')
-    .select('value')
-    .eq('key', 'sla_hours')
+  // Read SLA config from organizations.config JSONB
+  const { data: orgData } = await supabase
+    .from('organizations')
+    .select('config')
+    .limit(1)
     .single()
 
-  if (config?.value) {
-    slaHours = Number(config.value) || defaultSlaHours
+  if (orgData?.config && typeof orgData.config === 'object' && 'sla_hours' in (orgData.config as Record<string, unknown>)) {
+    slaHours = Number((orgData.config as Record<string, unknown>).sla_hours) || defaultSlaHours
   }
 
   const slaThreshold = new Date(

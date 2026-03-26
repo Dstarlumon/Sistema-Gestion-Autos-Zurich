@@ -12,14 +12,14 @@ import { verifyInviteCode } from './actions'
 
 const registerSchema = z
   .object({
-    fullName: z.string().min(1, 'Full name is required'),
-    email: z.string().email('Enter a valid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string().min(1, 'Please confirm your password'),
+    fullName: z.string().min(1, 'Nombre completo es requerido'),
+    email: z.string().email('Ingresa un email válido'),
+    password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+    confirmPassword: z.string().min(1, 'Confirma tu contraseña'),
     inviteCode: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
+    message: 'Las contraseñas no coinciden',
     path: ['confirmPassword'],
   })
 
@@ -80,7 +80,7 @@ export default function RegisterPage() {
           <Image src="/images/bmg-plus-icon.svg" alt="BMG+" width={56} height={56} className="rounded-xl inline-block mb-4" />
           <h1 className="text-2xl font-bold text-white tracking-tight">BMG+</h1>
           <p className="text-white/40 text-xs mt-1 tracking-widest uppercase">
-            Deployment Request
+            Registro de Cuenta
           </p>
         </div>
 
@@ -103,17 +103,17 @@ export default function RegisterPage() {
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
               <p className="text-emerald-400 text-sm font-medium">
-                Account created successfully
+                Cuenta creada exitosamente
               </p>
               <p className="text-white/40 text-xs mt-2">
-                Please check your email to verify your account before logging in.
+                Revisa tu correo electrónico para verificar tu cuenta antes de iniciar sesión.
               </p>
             </div>
             <Link
               href="/login"
               className="block w-full bg-linear-to-r from-[#fa5058] to-[#66cfd0] hover:from-[#fb6a70] hover:to-[#7dd8d9] text-white font-semibold py-3 rounded-lg transition-all duration-200 text-center"
             >
-              Return to Login
+              Volver al Inicio de Sesión
             </Link>
           </div>
         ) : (
@@ -122,7 +122,7 @@ export default function RegisterPage() {
             {/* Full name field */}
             <div className="space-y-1.5">
               <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
-                Full Name
+                Nombre Completo
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -143,7 +143,7 @@ export default function RegisterPage() {
                 </div>
                 <input
                   type="text"
-                  placeholder="John Doe"
+                  placeholder="Tu nombre completo"
                   autoComplete="name"
                   {...register('fullName')}
                   className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
@@ -157,7 +157,7 @@ export default function RegisterPage() {
             {/* Email field */}
             <div className="space-y-1.5">
               <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
-                Work Email
+                Correo Electrónico
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -178,7 +178,7 @@ export default function RegisterPage() {
                 </div>
                 <input
                   type="email"
-                  placeholder="architect@bmg.plus"
+                  placeholder="usuario@bmgplus.com"
                   autoComplete="email"
                   {...register('email')}
                   className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
@@ -192,7 +192,7 @@ export default function RegisterPage() {
             {/* Password field */}
             <div className="space-y-1.5">
               <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
-                Security Key
+                Contraseña
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -213,7 +213,7 @@ export default function RegisterPage() {
                 </div>
                 <input
                   type="password"
-                  placeholder="Min. 6 characters"
+                  placeholder="Mín. 6 caracteres"
                   autoComplete="new-password"
                   {...register('password')}
                   className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
@@ -227,7 +227,7 @@ export default function RegisterPage() {
             {/* Confirm password field */}
             <div className="space-y-1.5">
               <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
-                Confirm Security Key
+                Confirmar Contraseña
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -247,7 +247,7 @@ export default function RegisterPage() {
                 </div>
                 <input
                   type="password"
-                  placeholder="Re-enter security key"
+                  placeholder="Repite tu contraseña"
                   autoComplete="new-password"
                   {...register('confirmPassword')}
                   className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
@@ -263,7 +263,7 @@ export default function RegisterPage() {
             {/* Invite code field */}
             <div className="space-y-1.5">
               <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
-                Invite Code
+                Código de Invitación
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -283,7 +283,7 @@ export default function RegisterPage() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Enter invite code"
+                  placeholder="Ingresa el código de invitación"
                   autoComplete="off"
                   {...register('inviteCode')}
                   className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
@@ -327,7 +327,7 @@ export default function RegisterPage() {
                 </svg>
               ) : (
                 <>
-                  Deploy Account
+                  Crear Cuenta
                   <span aria-hidden="true">&rarr;</span>
                 </>
               )}
@@ -337,18 +337,18 @@ export default function RegisterPage() {
 
         {/* Footer */}
         <p className="text-white/20 text-xs text-center mt-6 tracking-wider uppercase">
-          System v1.0 | Encrypted Auth
+          SISTEMA v1.0 | AUTH CIFRADO
         </p>
       </div>
 
       {/* Bottom link */}
       <p className="text-white/40 text-sm mt-8">
-        Already have an architect account?{' '}
+        ¿Ya tienes cuenta?{' '}
         <Link
           href="/login"
           className="text-[#66cfd0] hover:text-[#66cfd0]/80 font-medium transition-colors"
         >
-          Initialize Core
+          Iniciar Sesión
         </Link>
       </p>
     </div>
