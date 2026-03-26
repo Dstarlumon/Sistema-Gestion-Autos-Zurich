@@ -302,8 +302,8 @@
             <div style="text-align:center;margin-bottom:16px;padding:10px 14px;background:rgba(255,200,50,.07);border:1px solid rgba(255,200,50,.2);border-radius:8px">
                 <p style="color:rgba(255,218,80,.85);font-size:11px;line-height:1.6">
                     🔑 <strong>Configuración inicial del sistema</strong><br>
-                    Esta cuenta será el <strong>Coordinador principal</strong>.<br>
-                    Los demás usuarios se crean desde el panel de administración.
+                    Si eres <strong>nuevo en este dispositivo</strong>, ingresa la URL y tus datos de acceso.<br>
+                    Si ya tienes cuenta, te redirigirá al login automáticamente.
                 </p>
             </div>
             <form onsubmit="doRegister(event)" autocomplete="off">
@@ -1322,6 +1322,11 @@ async function doRegister(e) {
         });
         if (r.status === 'ok') {
             showToast('✅ Coordinador creado. Ahora inicia sesión.', 'success');
+            document.getElementById('login_username').value = username;
+            showLoginPanel();
+        } else if (r.message && r.message.includes('ya existe')) {
+            // Usuario ya existe — solo necesitábamos guardar la URL. Redirigir al login.
+            showToast('✅ URL configurada. Inicia sesión con tu usuario.', 'success');
             document.getElementById('login_username').value = username;
             showLoginPanel();
         } else {
