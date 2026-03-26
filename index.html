@@ -117,9 +117,14 @@
 
         /* ─── KPI CARDS ─── */
         .kpi-section{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
-        .kpi-card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,.06);text-align:center;border-top:3px solid #003399}
-        .kpi-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-        .kpi-value{font-size:22px;font-weight:800;color:#003399}
+        .kpi-card{background:linear-gradient(135deg,#f0f4ff 0%,#fff 100%);border-radius:12px;padding:18px 16px;box-shadow:0 4px 12px rgba(0,51,153,.1);text-align:center;border-top:4px solid #003399;transition:transform .2s,box-shadow .2s}
+        .kpi-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,51,153,.15)}
+        .kpi-label{font-size:11px;font-weight:700;color:#5c6b8a;text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}
+        .kpi-value{font-size:26px;font-weight:900;color:#003399;line-height:1.1}
+        .kpi-card.green{border-top-color:#2e7d32} .kpi-card.green .kpi-value{color:#2e7d32}
+        .kpi-card.orange{border-top-color:#e65100} .kpi-card.orange .kpi-value{color:#e65100}
+        .kpi-card.teal{border-top-color:#00695c} .kpi-card.teal .kpi-value{color:#00695c}
+        .kpi-card.purple{border-top-color:#4a148c} .kpi-card.purple .kpi-value{color:#4a148c}
 
         /* ─── TABLE ─── */
         .table-container{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
@@ -137,8 +142,20 @@
 
         /* ─── DASHBOARD ─── */
         .dashboard-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:16px}
-        .chart-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+        .chart-card{background:linear-gradient(135deg,#f8faff 0%,#fff 100%);border-radius:12px;padding:20px;box-shadow:0 4px 14px rgba(0,51,153,.09);border:1px solid rgba(0,51,153,.07)}
         .chart-title{font-size:14px;font-weight:700;color:#333;margin-bottom:12px}
+        /* ── CAMPAIGNS ── */
+        .campanas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding:8px 0}
+        .campana-card{background:#fff;border-radius:14px;padding:20px 16px;box-shadow:0 4px 14px rgba(0,51,153,.1);border-left:5px solid #003399;cursor:pointer;transition:all .22s;position:relative;overflow:hidden}
+        .campana-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,51,153,.18)}
+        .campana-card::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;background:radial-gradient(circle,rgba(0,51,153,.08) 0%,transparent 70%)}
+        .campana-card-icon{font-size:28px;margin-bottom:8px}
+        .campana-card-name{font-size:15px;font-weight:800;color:#003399;margin-bottom:4px}
+        .campana-card-count{font-size:11px;color:#888;font-weight:500}
+        .campana-card-badge{display:inline-flex;align-items:center;gap:4px;margin-top:8px;background:#e8f0fe;color:#1a56db;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700}
+        .campana-back-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;margin-right:12px}
+        .campana-back-btn:hover{background:rgba(255,255,255,.3)}
+        .campana-current-badge{background:#fff;color:#003399;border-radius:8px;padding:5px 14px;font-size:13px;font-weight:800;margin-right:auto}
         .chart-wrap{position:relative;height:260px}
 
         /* ─── TOAST ─── */
@@ -415,8 +432,13 @@
             </div>
         </div>
     </div>
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:0 16px 0 0">
+        <button id="campanaBackBtn" class="campana-back-btn" onclick="exitCampana()" style="display:none">← Campañas</button>
+        <span id="campanaBadge" style="display:none;font-size:13px;font-weight:800;padding:5px 14px;background:rgba(255,255,255,.15);border-radius:8px;color:#fff;margin-right:8px"></span>
+    </div>
     <div class="nav-tabs" id="navTabs">
-        <button class="nav-tab active" data-module="gestion">📋 Gestión</button>
+        <button class="nav-tab" data-module="campanas" id="navCampanas">🎯 Campañas</button>
+        <button class="nav-tab active" data-module="gestion" id="navGestion">📋 Gestión</button>
         <button class="nav-tab" data-module="ventas">💰 Ventas</button>
         <button class="nav-tab" data-module="calidad">⭐ Calidad</button>
         <button class="nav-tab" data-module="dashboard">📊 Dashboard</button>
@@ -428,6 +450,20 @@
 <div class="container" id="mainContainer" style="display:none">
 
     <!-- ────────────────────────────── MODULE: GESTIÓN (UNIFIED) ── -->
+    <!-- ═══════════════════════════ CAMPAÑAS MODULE ═══════════════════════════ -->
+    <div class="module" id="module-campanas">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+            <div>
+                <h2 style="font-size:18px;font-weight:800;color:#003399;margin:0">🎯 Mis Campañas</h2>
+                <p style="font-size:12px;color:#888;margin:4px 0 0">Selecciona una campaña para gestionar sus registros</p>
+            </div>
+            <button class="btn btn-secondary" onclick="loadCampanas()" style="font-size:12px">🔄 Actualizar</button>
+        </div>
+        <div id="campanas-grid" class="campanas-grid">
+            <div style="text-align:center;padding:40px;color:#aaa;grid-column:1/-1">⏳ Cargando campañas...</div>
+        </div>
+    </div>
+
     <div class="module active" id="module-gestion">
         <div class="module-tabs">
             <button class="module-tab active" data-view="form" id="gestion-tab-form">➕ Nuevo Registro</button>
@@ -453,31 +489,19 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Fuente / Origen <span class="req">*</span></label>
+                            <label>Campaña / Origen <span class="req">*</span></label>
                             <select id="g_fuente" required onchange="onGestionFuenteChange()">
-                                <option value="">Seleccionar fuente...</option>
-                                <optgroup label="Inbound">
-                                    <option value="Inbound">Inbound</option>
-                                    <option value="Chatbot">Chatbot</option>
-                                </optgroup>
-                                <optgroup label="Pauta y Digital">
-                                    <option value="Pauta">Pauta</option>
-                                    <option value="Pauta Max">Pauta Max</option>
-                                    <option value="WhatsApp Pauta">WhatsApp Pauta</option>
-                                    <option value="Organico">Orgánico</option>
-                                    <option value="WhatsApp Organico">WhatsApp Orgánico</option>
-                                    <option value="Jira Organico">Jira Orgánico</option>
-                                </optgroup>
-                                <optgroup label="Referidos y Alianzas">
-                                    <option value="Referidos">Referidos</option>
-                                    <option value="Santander">Santander</option>
-                                    <option value="Contigo Intermediarios">Contigo Intermediarios</option>
-                                    <option value="Motos Zurich">Motos Zurich</option>
-                                    <option value="Otros">Otros</option>
-                                </optgroup>
-                                <optgroup label="Renovaciones">
-                                    <option value="Renovación">Renovación</option>
-                                </optgroup>
+                                <option value="">Seleccionar campaña...</option>
+                                <option value="Autos">Autos</option>
+                                <option value="Motos">Motos</option>
+                                <option value="Contigo">Contigo</option>
+                                <option value="Global">Global</option>
+                                <option value="Hogar Directo">Hogar Directo</option>
+                                <option value="Compensar Arrendamiento">Compensar Arrendamiento</option>
+                                <option value="Compensar Pyme">Compensar Pyme</option>
+                                <option value="Arrendamiento Directo">Arrendamiento Directo</option>
+                                <option value="Renovaciones Autos">Renovaciones Autos</option>
+                                <option value="Renovaciones Hogar">Renovaciones Hogar</option>
                             </select>
                         </div>
                         <div class="form-group" id="g_campana_group" style="display:none">
@@ -629,9 +653,9 @@
             <div class="kpi-section" id="gestion-kpi">
                 <div class="kpi-card"><div class="kpi-label">Total Registros</div><div class="kpi-value" id="g-kpi-total">0</div></div>
                 <div class="kpi-card"><div class="kpi-label">En Proceso</div><div class="kpi-value" id="g-kpi-proceso">0</div></div>
-                <div class="kpi-card"><div class="kpi-label">No Contesta</div><div class="kpi-value" id="g-kpi-nocontacto">0</div></div>
-                <div class="kpi-card"><div class="kpi-label">Ventas</div><div class="kpi-value" id="g-kpi-ventas">0</div></div>
-                <div class="kpi-card"><div class="kpi-label">Renovadas</div><div class="kpi-value" id="g-kpi-renovadas">0</div></div>
+                <div class="kpi-card orange"><div class="kpi-label">No Contesta</div><div class="kpi-value" id="g-kpi-nocontacto">0</div></div>
+                <div class="kpi-card green"><div class="kpi-label">Ventas</div><div class="kpi-value" id="g-kpi-ventas">0</div></div>
+                <div class="kpi-card teal"><div class="kpi-label">Renovadas</div><div class="kpi-value" id="g-kpi-renovadas">0</div></div>
             </div>
             <div class="table-container">
                 <div class="filters-container">
@@ -649,6 +673,10 @@
                     </div>
                     <div class="filter-group"><label>&nbsp;</label><button class="btn btn-primary" onclick="applyGestionFilters()">Aplicar</button></div>
                     <div class="filter-group"><label>&nbsp;</label><button class="btn btn-secondary" onclick="loadGestionData()">🔄 Recargar</button></div>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                    <button class="btn btn-secondary" onclick="downloadTable('gestion','csv')" style="font-size:12px;padding:6px 12px">⬇️ CSV</button>
+                    <button class="btn btn-secondary" onclick="downloadTable('gestion','excel')" style="font-size:12px;padding:6px 12px">📊 Excel</button>
                 </div>
                 <div class="table-wrapper">
                     <table id="gestion-table">
@@ -741,18 +769,6 @@
                     </div>
                     <div class="form-row-3">
                         <div class="form-group">
-                            <label>¿Cotizó?</label>
-                            <select id="v_cotizacion" onchange="toggleNumCotizacion('v')">
-                                <option value="">Seleccionar</option>
-                                <option value="Sí">Sí</option>
-                                <option value="No">No</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="v_num_cotizacion_group" style="display:none">
-                            <label>N° de Cotización</label>
-                            <input type="text" id="v_num_cotizacion" placeholder="Ej: COT-2024-001">
-                        </div>
-                        <div class="form-group">
                             <label>Tipo de Seguro <span class="req">*</span></label>
                             <select id="v_tipo" required>
                                 <option value="">Seleccionar</option>
@@ -784,8 +800,8 @@
 
         <div class="module-content" data-view="table">
             <div class="kpi-section" id="ventas-kpi">
-                <div class="kpi-card"><div class="kpi-label">Total Ventas</div><div class="kpi-value" id="v-kpi-total">0</div></div>
-                <div class="kpi-card"><div class="kpi-label">Prima Total</div><div class="kpi-value" style="font-size:16px" id="v-kpi-prima">$0</div></div>
+                <div class="kpi-card green"><div class="kpi-label">Total Ventas</div><div class="kpi-value" id="v-kpi-total">0</div></div>
+                <div class="kpi-card teal"><div class="kpi-label">Prima Total</div><div class="kpi-value" style="font-size:16px" id="v-kpi-prima">$0</div></div>
                 <div class="kpi-card"><div class="kpi-label">Prima Promedio</div><div class="kpi-value" style="font-size:16px" id="v-kpi-prom">$0</div></div>
                 <div class="kpi-card"><div class="kpi-label">Mejor Agente</div><div class="kpi-value" style="font-size:13px" id="v-kpi-agente">-</div></div>
                 <div class="kpi-card"><div class="kpi-label">Canal Top</div><div class="kpi-value" id="v-kpi-canal">-</div></div>
@@ -805,6 +821,10 @@
                         </select>
                     </div>
                     <div class="filter-group"><label>&nbsp;</label><button class="btn btn-primary" onclick="applyFilters('ventas')">Aplicar</button></div>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                    <button class="btn btn-secondary" onclick="downloadTable('ventas','csv')" style="font-size:12px;padding:6px 12px">⬇️ CSV</button>
+                    <button class="btn btn-secondary" onclick="downloadTable('ventas','excel')" style="font-size:12px;padding:6px 12px">📊 Excel</button>
                 </div>
                 <div class="table-wrapper">
                     <table id="ventas-table">
@@ -974,6 +994,10 @@
                     </div>
                     <div class="filter-group"><label>&nbsp;</label><button class="btn btn-primary" onclick="applyFilters('calidad')">Aplicar</button></div>
                 </div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                    <button class="btn btn-secondary" onclick="downloadTable('calidad','csv')" style="font-size:12px;padding:6px 12px">⬇️ CSV</button>
+                    <button class="btn btn-secondary" onclick="downloadTable('calidad','excel')" style="font-size:12px;padding:6px 12px">📊 Excel</button>
+                </div>
                 <div class="table-wrapper">
                     <table id="calidad-table">
                         <thead>
@@ -999,8 +1023,8 @@
         </div>
         <div class="kpi-section" id="dash-kpi">
             <div class="kpi-card"><div class="kpi-label">Total Registros</div><div class="kpi-value" id="d-kpi-total">0</div></div>
-            <div class="kpi-card"><div class="kpi-label">Total Ventas</div><div class="kpi-value" id="d-kpi-ventas">0</div></div>
-            <div class="kpi-card"><div class="kpi-label">Prima Total</div><div class="kpi-value" style="font-size:16px" id="d-kpi-prima">$0</div></div>
+            <div class="kpi-card green"><div class="kpi-label">Total Ventas</div><div class="kpi-value" id="d-kpi-ventas">0</div></div>
+            <div class="kpi-card teal"><div class="kpi-label">Prima Total</div><div class="kpi-value" style="font-size:16px" id="d-kpi-prima">$0</div></div>
             <div class="kpi-card"><div class="kpi-label">Contactabilidad</div><div class="kpi-value" id="d-kpi-contactabilidad">0%</div></div>
             <div class="kpi-card"><div class="kpi-label">Efectividad</div><div class="kpi-value" id="d-kpi-efectividad">0%</div></div>
         </div>
@@ -1062,6 +1086,14 @@
             <div class="config-title">👤 Gestión de Usuarios</div>
             <p style="font-size:13px;color:#666;margin-bottom:10px">Panel de administración de usuarios — solo visible para Coordinadores.</p>
             <div id="userMgmtContainer"></div>
+
+        <!-- ── GESTIÓN DE CAMPAÑAS ── -->
+        <div id="campMgmtSection" style="margin-top:28px;padding-top:20px;border-top:2px solid #E8F4FD">
+            <div style="font-size:15px;font-weight:800;color:#003399;margin-bottom:16px">🎯 Gestión de Campañas</div>
+            <div id="campMgmtContainer">
+                <div style="text-align:center;padding:20px;color:#aaa">Solo visible para Coordinadores</div>
+            </div>
+        </div>
         </div>
 
         <div class="config-section">
@@ -1195,9 +1227,9 @@ const TIPIFICACIONES = {
 const ALL_TIPIFICACIONES = Object.values(TIPIFICACIONES).flat();
 
 const SOURCES = [
-    'Inbound','Chatbot','Pauta','Pauta Max','WhatsApp Pauta',
-    'Organico','WhatsApp Organico','Jira Organico',
-    'Referidos','Santander','Contigo Intermediarios','Motos Zurich','Otros'
+    'Autos','Motos','Contigo','Global',
+    'Hogar Directo','Compensar Arrendamiento','Compensar Pyme',
+    'Arrendamiento Directo','Renovaciones Autos','Renovaciones Hogar'
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -1411,6 +1443,8 @@ async function doLogin(e) {
         updateAvatarDisplay();
         initializeApp();
         renderUserMgmtTable();
+        renderCampMgmtTable();
+        setTimeout(() => switchModule('campanas'), 50);
     } catch(err) {
         errEl.textContent = 'Error de conexión: ' + err.message;
         errEl.style.display = 'block';
@@ -1646,8 +1680,9 @@ async function renderUserMgmtTable() {
             <td>
                 <div style="display:flex;gap:5px;flex-wrap:wrap">
                     ${!isMe ? `
+                        <button class="btn btn-small btn-primary" onclick="openEditUserModal('${u.id}','${u.nombre.replace(/'/g,"\'")}','${u.username}','${u.rol}','${(u.agente||'').replace(/'/g,"\'")}','${(u.email||'').replace(/'/g,"\'")}','${(u.telefono||'').replace(/'/g,"\'")}')" title="Editar usuario" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9">✏️</button>
                         <button class="btn btn-small ${isActive ? 'btn-warning' : 'btn-success'}" onclick="toggleUserActive('${u.id}')" style="${isActive ? 'background:#fff3e0;color:#e65100;border:1px solid #ffe0b2' : ''}">
-                            ${isActive ? '⏸ Desactivar' : '▶ Activar'}
+                            ${isActive ? '⏸' : '▶'}
                         </button>
                         <button class="btn btn-small btn-danger" onclick="adminDeleteUser('${u.id}','${u.nombre.replace(/'/g,"\'")}','${u.username}')" title="Eliminar">🗑</button>
                     ` : '<span style="color:#aaa;font-size:11px;font-style:italic">Tú</span>'}
@@ -1778,6 +1813,317 @@ async function adminDeleteUser(userId, nombre, username) {
         showToast('Error de conexión: ' + e.message, 'error');
     }
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// DOWNLOAD TABLE (CSV / Excel)
+// ═══════════════════════════════════════════════════════════════
+async function downloadTable(moduleId, format) {
+    showToast('⏳ Preparando descarga...', 'info');
+    const sheetMap = { gestion: null, ventas: 'Ventas', calidad: 'Calidad_Leads' };
+    let sheetName = sheetMap[moduleId];
+
+    // For gestión, combine all sub-sheets
+    let rows = [];
+    try {
+        if (moduleId === 'gestion') {
+            const [r1, r2, r3] = await Promise.all([
+                apiRequest({ action: 'getAll', sheet: 'Inbound_Chatbot' }),
+                apiRequest({ action: 'getAll', sheet: 'Pauta_Otros' }),
+                apiRequest({ action: 'getAll', sheet: 'Renovaciones' })
+            ]);
+            rows = [...(r1.data||[]), ...(r2.data||[]), ...(r3.data||[])];
+        } else {
+            const r = await apiRequest({ action: 'getAll', sheet: sheetName });
+            rows = r.data || [];
+        }
+    } catch(e) { showToast('Error al obtener datos: ' + e.message, 'error'); return; }
+
+    if (!rows.length) { showToast('No hay datos para descargar', 'warning'); return; }
+
+    const headers = Object.keys(rows[0]);
+    if (format === 'csv') {
+        const csvContent = [headers.join(','), ...rows.map(r =>
+            headers.map(h => {
+                const val = String(r[h] || '').replace(/"/g, '""');
+                return val.includes(',') || val.includes('"') || val.includes('\n') ? `"${val}"` : val;
+            }).join(',')
+        )].join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${moduleId}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        showToast('✅ CSV descargado', 'success');
+    } else {
+        // Excel via HTML table trick (opens in Excel)
+        const table = '<table><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>' +
+            rows.map(r => '<tr>' + headers.map(h => `<td>${r[h] || ''}</td>`).join('') + '</tr>').join('') + '</table>';
+        const blob = new Blob(['<html><head><meta charset="utf-8"></head><body>' + table + '</body></html>'],
+            { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${moduleId}_${new Date().toISOString().split('T')[0]}.xls`;
+        a.click();
+        showToast('✅ Excel descargado', 'success');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTO-POPULATE CALIDAD FROM GESTIÓN
+// ═══════════════════════════════════════════════════════════════
+async function autoPopulateCalidad() {
+    const cotiza = document.getElementById('g_cotizacion')?.value;
+    if (cotiza !== 'No') return; // Only auto-populate when No cotiza
+
+    if (!apiUrl) return;
+    const agente  = document.getElementById('g_agente')?.value || '';
+    const nombre  = document.getElementById('g_nombre')?.value || '';
+    const tel     = document.getElementById('g_telefono')?.value || '';
+    const doc     = document.getElementById('g_documento')?.value || '';
+    const fecha   = document.getElementById('g_fecha')?.value || '';
+    const fuente  = document.getElementById('g_fuente')?.value || '';
+
+    try {
+        await apiRequest({
+            action: 'add', sheet: 'Calidad_Leads',
+            data: JSON.stringify({
+                fecha, agente, fuente, nombre, telefono: tel, documento: doc,
+                categoria: 'No Cotiza', subtipo: 'Desde Gestión (Auto)',
+                intentoContacto: '', medioContacto: '', numIntentos: 1,
+                observacion: 'Registro automático desde Gestión'
+            })
+        });
+        showToast('📋 Registro de Calidad creado automáticamente', 'info');
+    } catch(e) { /* silently ignore */ }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EDIT USER
+// ═══════════════════════════════════════════════════════════════
+function openEditUserModal(id, nombre, username, rol, agente, email, telefono) {
+    document.getElementById('eu_id').value = id;
+    document.getElementById('eu_nombre').value = nombre;
+    document.getElementById('eu_username').value = username;
+    document.getElementById('eu_rol').value = rol;
+    document.getElementById('eu_email').value = email;
+    document.getElementById('eu_telefono').value = telefono;
+    document.getElementById('eu_password').value = '';
+    document.getElementById('eu_error').style.display = 'none';
+
+    // Populate agente select
+    const agtSel = document.getElementById('eu_agente');
+    agtSel.innerHTML = AGENTS.map(a => `<option value="${a}" ${a===agente?'selected':''}>${a}</option>`).join('');
+
+    toggleEditAgentField();
+    document.getElementById('editUserModal').style.display = 'flex';
+}
+
+function closeEditUserModal() {
+    document.getElementById('editUserModal').style.display = 'none';
+}
+
+function toggleEditAgentField() {
+    const rol = document.getElementById('eu_rol')?.value;
+    const grp = document.getElementById('eu_agente_group');
+    if (grp) grp.style.display = rol === 'Agente' ? 'flex' : 'none';
+}
+
+async function saveEditUser() {
+    const id      = document.getElementById('eu_id').value;
+    const nombre  = document.getElementById('eu_nombre').value.trim();
+    const rol     = document.getElementById('eu_rol').value;
+    const agente  = rol === 'Agente' ? document.getElementById('eu_agente').value : nombre;
+    const email   = document.getElementById('eu_email').value.trim();
+    const tel     = document.getElementById('eu_telefono').value.trim();
+    const newPass = document.getElementById('eu_password').value;
+    const errEl   = document.getElementById('eu_error');
+    errEl.style.display = 'none';
+
+    if (!nombre) { errEl.textContent = 'El nombre no puede estar vacío'; errEl.style.display='block'; return; }
+    if (newPass && newPass.length < 6) { errEl.textContent = 'La contraseña debe tener al menos 6 caracteres'; errEl.style.display='block'; return; }
+
+    const btn = document.querySelector('#editUserModal .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Guardando...'; }
+
+    try {
+        const params = { action: 'adminUpdateUser', id, nombre, rol, agente, email, telefono: tel };
+        if (newPass) params.newPasswordHash = await hashPass(newPass);
+        const r = await apiUserRequest(params);
+        if (r.status === 'ok') {
+            showToast('✅ Usuario actualizado', 'success');
+            closeEditUserModal();
+            renderUserMgmtTable();
+        } else {
+            errEl.textContent = r.message || 'Error al guardar';
+            errEl.style.display = 'block';
+        }
+    } catch(e) {
+        errEl.textContent = 'Error: ' + e.message;
+        errEl.style.display = 'block';
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar Cambios'; }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAMPAIGNS SYSTEM
+// ═══════════════════════════════════════════════════════════════
+let currentCampana = null;
+
+const CAMPANA_ICONS = {
+    'Autos': '🚗', 'Motos': '🏍', 'Contigo': '🤝', 'Global': '🌍',
+    'Hogar Directo': '🏠', 'Compensar Arrendamiento': '🏢',
+    'Compensar Pyme': '🏭', 'Arrendamiento Directo': '📋',
+    'Renovaciones Autos': '🔄', 'Renovaciones Hogar': '🔃'
+};
+
+const CAMPANA_COLORS = [
+    '#003399','#1565c0','#2e7d32','#00695c','#e65100',
+    '#6a1b9a','#c62828','#0277bd','#558b2f','#4527a0'
+];
+
+async function loadCampanas() {
+    const grid = document.getElementById('campanas-grid');
+    if (!grid) return;
+
+    const isCoord = currentUser?.rol === 'Coordinador';
+    const storedCampanas = JSON.parse(localStorage.getItem('starlumon_campanas') || 'null');
+
+    // Use stored campaigns or defaults
+    const campanas = storedCampanas || [
+        'Autos','Motos','Contigo','Global','Hogar Directo',
+        'Compensar Arrendamiento','Compensar Pyme','Arrendamiento Directo',
+        'Renovaciones Autos','Renovaciones Hogar'
+    ].map((n,i) => ({ id: i+1, nombre: n, activo: true }));
+
+    // Filter: agents only see assigned campaigns
+    let visible = campanas.filter(c => c.activo !== false);
+    if (!isCoord) {
+        const assigned = JSON.parse(localStorage.getItem(`campanas_agente_${currentUser?.id}`) || '[]');
+        if (assigned.length > 0) visible = visible.filter(c => assigned.includes(c.id));
+    }
+
+    if (!visible.length) {
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;grid-column:1/-1">No tienes campañas asignadas. Contacta a tu Coordinador.</div>';
+        return;
+    }
+
+    grid.innerHTML = visible.map((camp, idx) => {
+        const icon = CAMPANA_ICONS[camp.nombre] || '📁';
+        const color = CAMPANA_COLORS[idx % CAMPANA_COLORS.length];
+        return `<div class="campana-card" onclick="enterCampana(${camp.id},'${camp.nombre.replace(/'/g,"\'")}','${color}')" style="border-left-color:${color}">
+            <div class="campana-card-icon">${icon}</div>
+            <div class="campana-card-name" style="color:${color}">${camp.nombre}</div>
+            <div class="campana-card-count">Haz clic para gestionar</div>
+            <div class="campana-card-badge" style="background:${color}18;color:${color}">▶ Ver registros</div>
+        </div>`;
+    }).join('');
+}
+
+function enterCampana(id, nombre, color) {
+    currentCampana = { id, nombre, color };
+    localStorage.setItem('starlumon_current_campana', JSON.stringify(currentCampana));
+
+    // Show campaign context in header
+    const backBtn = document.getElementById('campanaBackBtn');
+    const badge   = document.getElementById('campanaBadge');
+    if (backBtn) backBtn.style.display = 'flex';
+    if (badge)   { badge.textContent = nombre; badge.style.display = 'block'; badge.style.color = color; }
+
+    // Update module titles
+    document.querySelectorAll('.campana-context-name').forEach(el => el.textContent = nombre);
+    document.querySelectorAll('.campana-context-dot').forEach(el => el.style.background = color);
+
+    // Navigate to gestión
+    switchModule('gestion');
+    showToast(`📋 Campaña: ${nombre}`, 'info');
+}
+
+function exitCampana() {
+    currentCampana = null;
+    localStorage.removeItem('starlumon_current_campana');
+    const backBtn = document.getElementById('campanaBackBtn');
+    const badge   = document.getElementById('campanaBadge');
+    if (backBtn) backBtn.style.display = 'none';
+    if (badge)   badge.style.display = 'none';
+    document.querySelectorAll('.campana-context-name').forEach(el => el.textContent = '');
+    switchModule('campanas');
+}
+
+async function renderCampMgmtTable() {
+    const container = document.getElementById('campMgmtContainer');
+    if (!container) return;
+    if (currentUser?.rol !== 'Coordinador') { container.innerHTML = ''; return; }
+
+    const storedCampanas = JSON.parse(localStorage.getItem('starlumon_campanas') || 'null');
+    const campanas = storedCampanas || [
+        'Autos','Motos','Contigo','Global','Hogar Directo',
+        'Compensar Arrendamiento','Compensar Pyme','Arrendamiento Directo',
+        'Renovaciones Autos','Renovaciones Hogar'
+    ].map((n,i) => ({ id: i+1, nombre: n, activo: true }));
+
+    const rows = campanas.map(c => `
+        <tr>
+            <td style="font-weight:600">${CAMPANA_ICONS[c.nombre]||'📁'} ${c.nombre}</td>
+            <td><span style="color:${c.activo!==false?'#2e7d32':'#c62828'};font-weight:700;font-size:12px">● ${c.activo!==false?'Activa':'Inactiva'}</span></td>
+            <td>
+                <div style="display:flex;gap:5px;flex-wrap:wrap">
+                    <button class="btn btn-small" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9" onclick="toggleCampana(${c.id})">
+                        ${c.activo!==false?'⏸ Desactivar':'▶ Activar'}
+                    </button>
+                    <button class="btn btn-small btn-danger" onclick="deleteCampana(${c.id},'${c.nombre.replace(/'/g,"\'")}')">🗑</button>
+                </div>
+            </td>
+        </tr>`).join('');
+
+    container.innerHTML = `
+        <table class="user-mgmt-table">
+            <thead><tr><th>Campaña</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid #E8F4FD">
+            <div style="font-size:13px;font-weight:700;color:#003399;margin-bottom:10px">➕ Nueva Campaña</div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                <div class="form-group" style="flex:1;min-width:180px">
+                    <label style="font-size:11px;font-weight:600;color:#666">Nombre de la campaña</label>
+                    <input type="text" id="new_camp_nombre" placeholder="Ej: SOAT Motos">
+                </div>
+                <button class="btn btn-primary" onclick="addCampana()" style="margin-bottom:0">➕ Agregar</button>
+            </div>
+        </div>`;
+}
+
+function toggleCampana(id) {
+    const campanas = JSON.parse(localStorage.getItem('starlumon_campanas') || '[]');
+    const c = campanas.find(x => x.id === id);
+    if (c) { c.activo = !c.activo; localStorage.setItem('starlumon_campanas', JSON.stringify(campanas)); renderCampMgmtTable(); showToast(c.activo?'✅ Campaña activada':'⏸ Campaña desactivada','info'); }
+}
+
+function deleteCampana(id, nombre) {
+    if (!confirm(`¿Eliminar la campaña "${nombre}"?`)) return;
+    let campanas = JSON.parse(localStorage.getItem('starlumon_campanas') || '[]');
+    campanas = campanas.filter(c => c.id !== id);
+    localStorage.setItem('starlumon_campanas', JSON.stringify(campanas));
+    renderCampMgmtTable();
+    showToast(`🗑️ Campaña "${nombre}" eliminada`, 'warning');
+}
+
+function addCampana() {
+    const nombre = document.getElementById('new_camp_nombre')?.value.trim();
+    if (!nombre) { showToast('Ingresa el nombre de la campaña', 'error'); return; }
+    let campanas = JSON.parse(localStorage.getItem('starlumon_campanas') || 'null');
+    if (!campanas) {
+        campanas = ['Autos','Motos','Contigo','Global','Hogar Directo','Compensar Arrendamiento','Compensar Pyme','Arrendamiento Directo','Renovaciones Autos','Renovaciones Hogar'].map((n,i) => ({id:i+1,nombre:n,activo:true}));
+    }
+    const newId = Math.max(0, ...campanas.map(c=>c.id)) + 1;
+    campanas.push({ id: newId, nombre, activo: true });
+    localStorage.setItem('starlumon_campanas', JSON.stringify(campanas));
+    document.getElementById('new_camp_nombre').value = '';
+    renderCampMgmtTable();
+    showToast(`✅ Campaña "${nombre}" creada`, 'success');
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // INICIALIZACIÓN
@@ -2176,6 +2522,7 @@ async function submitGestion(e) {
 
         if (result.status === 'ok') {
             showToast('✅ Registro guardado exitosamente', 'success');
+            autoPopulateCalidad(data);
             resetGestionForm();
         } else {
             showToast('Error: ' + (result.message || 'Error al guardar'), 'error');
@@ -2388,8 +2735,8 @@ function getFormData(module) {
             fuente: document.getElementById('v_fuente').value,
             medioPago: document.getElementById('v_pago').value,
             numPoliza: document.getElementById('v_poliza').value,
-            cotizacion: document.getElementById('v_cotizacion').value,
-            numCotizacion: document.getElementById('v_cotizacion').value === 'Sí' ? document.getElementById('v_num_cotizacion').value : '',
+            cotizacion: '',
+            numCotizacion: '',
             tipoSeguro: document.getElementById('v_tipo').value,
             observacion: document.getElementById('v_observacion').value
         };
@@ -2776,5 +3123,52 @@ function showToast(msg, type = 'info') {
 }
 
 </script>
+
+<!-- ═══════════════════════ EDIT USER MODAL ═══════════════════════ -->
+<div class="modal" id="editUserModal">
+    <div class="modal-content" style="max-width:480px">
+        <div class="modal-title">✏️ Editar Usuario</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+            <div class="form-group">
+                <label style="font-size:11px;font-weight:600;color:#666">Nombre completo</label>
+                <input type="text" id="eu_nombre" placeholder="Nombre">
+            </div>
+            <div class="form-group">
+                <label style="font-size:11px;font-weight:600;color:#666">Usuario (login)</label>
+                <input type="text" id="eu_username" placeholder="usuario" disabled style="background:#f5f5f5;color:#999">
+            </div>
+            <div class="form-group">
+                <label style="font-size:11px;font-weight:600;color:#666">Rol</label>
+                <select id="eu_rol" onchange="toggleEditAgentField()">
+                    <option value="Agente">Agente</option>
+                    <option value="Coordinador">Coordinador</option>
+                    <option value="Usuario">Usuario (Solo lectura)</option>
+                </select>
+            </div>
+            <div class="form-group" id="eu_agente_group">
+                <label style="font-size:11px;font-weight:600;color:#666">Agente asignado</label>
+                <select id="eu_agente"></select>
+            </div>
+            <div class="form-group">
+                <label style="font-size:11px;font-weight:600;color:#666">Correo</label>
+                <input type="email" id="eu_email" placeholder="correo@email.com">
+            </div>
+            <div class="form-group">
+                <label style="font-size:11px;font-weight:600;color:#666">Teléfono</label>
+                <input type="text" id="eu_telefono" placeholder="Teléfono">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+                <label style="font-size:11px;font-weight:600;color:#666">Nueva contraseña <span style="color:#aaa;font-weight:400">(dejar vacío para no cambiar)</span></label>
+                <input type="password" id="eu_password" placeholder="Nueva contraseña (mínimo 6 caracteres)">
+            </div>
+        </div>
+        <div id="eu_error" style="color:#e53935;font-size:12px;display:none;margin:8px 0;background:rgba(229,57,53,.08);padding:8px;border-radius:6px"></div>
+        <input type="hidden" id="eu_id">
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeEditUserModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveEditUser()">💾 Guardar Cambios</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
