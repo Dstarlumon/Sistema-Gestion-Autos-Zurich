@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { EmptyStateAnimation } from '@/components/lottie/animations'
 
 const MotionTableRow = motion.create(TableRow)
 
@@ -150,11 +151,8 @@ export function DataTable<T extends Record<string, unknown>>({
             {/* Empty state */}
             {!isLoading && data.length === 0 && (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="text-center py-16 text-body-md text-on-surface-variant"
-                >
-                  {emptyMessage}
+                <TableCell colSpan={columns.length}>
+                  <EmptyStateAnimation message={emptyMessage} />
                 </TableCell>
               </TableRow>
             )}
@@ -180,7 +178,7 @@ export function DataTable<T extends Record<string, unknown>>({
                       'transition-colors duration-500',
                       'hover:bg-surface-container-low',
                       onRowClick && 'cursor-pointer',
-                      isNewRow && 'bg-emerald-50 animate-pulse',
+                      isNewRow && 'bg-emerald-50/70',
                     )}
                   >
                     {columns.map((col) => (

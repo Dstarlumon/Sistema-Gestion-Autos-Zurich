@@ -16,6 +16,7 @@ import {
 } from '@/lib/validations/gestion.schema'
 import type { GestionVentaInput } from '@/lib/validations/gestion.schema'
 import { CANALES } from '@/lib/utils/constants'
+import { SuccessAnimation } from '@/components/lottie/animations'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -699,18 +700,16 @@ export function GestionForm({
           )}
         </Button>
 
-        {/* Success message */}
+        {/* Success animation */}
         <AnimatePresence>
           {showSuccess && (
-            <motion.span
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center gap-1 text-sm font-medium text-emerald-600"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
             >
-              <CheckCircle2 className="size-4" />
-              Gestion registrada
-            </motion.span>
+              <SuccessAnimation size={48} message="Gestión registrada" />
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

@@ -10,6 +10,7 @@ import { CommandPalette } from '@/components/shared/command-palette'
 import { PageTransition } from '@/components/shared/page-transition'
 import { OnboardingTour } from '@/components/shared/onboarding-tour'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { LoadingAnimation } from '@/components/lottie/animations'
 import type { UserProfile } from '@/types/auth.types'
 
 interface AppShellProps {
@@ -53,16 +54,7 @@ export default function AppShell({ children, initialProfile }: AppShellProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 bg-linear-to-br from-blue-600 to-blue-500 rounded-xl flex items-center justify-center animate-pulse">
-            <span className="text-white font-extrabold text-sm">B+</span>
-          </div>
-          <div className="flex gap-1">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0ms]" />
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:150ms]" />
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:300ms]" />
-          </div>
-        </div>
+        <LoadingAnimation size={100} />
       </div>
     )
   }

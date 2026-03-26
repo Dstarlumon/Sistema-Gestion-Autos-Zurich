@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { cn } from '@/lib/utils'
+import { useRole } from '@/hooks/use-role'
 
 const STEPS = [
   {
@@ -38,13 +39,15 @@ const STEPS = [
 ]
 
 export function OnboardingTour() {
+  const { isCoordinador } = useRole()
   const [step, setStep] = useState(0)
   const [show, setShow] = useState(false)
 
   useEffect(() => {
+    if (!isCoordinador) return
     const seen = localStorage.getItem('bmg-onboarding-complete')
     if (!seen) setShow(true)
-  }, [])
+  }, [isCoordinador])
 
   const complete = () => {
     localStorage.setItem('bmg-onboarding-complete', 'true')
