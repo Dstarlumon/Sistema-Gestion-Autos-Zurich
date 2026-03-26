@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, Fragment } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { PageHeader } from '@/components/shared/page-header'
 import { KpiCard } from '@/components/charts/kpi-card'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -202,9 +203,12 @@ function AlertFeed() {
                       </p>
                       <div className="flex items-center gap-3 mt-1.5">
                         {agentName && (
-                          <span className="text-[0.65rem] text-on-surface-variant">
+                          <Link
+                            href={`/gestion?agent=${alert.related_agent_id as string}`}
+                            className="text-[0.65rem] text-brand-primary hover:underline"
+                          >
                             Agente: {agentName}
-                          </span>
+                          </Link>
                         )}
                         <span className="text-[0.65rem] text-on-surface-variant">
                           {alert.created_at
@@ -506,6 +510,123 @@ const ACTION_MAP: Record<string, string> = {
   DELETE: 'Elimino',
 }
 
+// ---------------------------------------------------------------------------
+// Audit Diff View — shows before/after for changed fields
+// ---------------------------------------------------------------------------
+
+function AuditDiffView({
+  oldData,
+  newData,
+  action,
+  onClose,
+}: {
+  oldData: Record<string, unknown> | null
+  newData: Record<string, unknown> | null
+  action: string
+  onClose: () => void
+}) {
+  // Compute the changed fields
+  const changes = useMemo(() => {
+    if (action === 'INSERT' && newData) {
+      // Show all new fields
+      return Object.entries(newData)
+        .filter(([, v]) => v != null && v !== '')
+        .map(([key, val]) => ({
+          field: key,
+          before: null,
+          after: String(val),
+        }))
+    }
+
+    if (action === 'DELETE' && oldData) {
+      // Show all deleted fields
+      return Object.entries(oldData)
+        .filter(([, v]) => v != null && v !== '')
+        .map(([key, val]) => ({
+          field: key,
+          before: String(val),
+          after: null,
+        }))
+    }
+
+    // UPDATE: show only changed fields
+    if (!oldData || !newData) return []
+
+    const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)])
+    const result: { field: string; before: string | null; after: string | null }[] = []
+
+    allKeys.forEach((key) => {
+      const oldVal = oldData[key]
+      const newVal = newData[key]
+      const oldStr = oldVal != null ? String(oldVal) : null
+      const newStr = newVal != null ? String(newVal) : null
+
+      if (oldStr !== newStr) {
+        result.push({ field: key, before: oldStr, after: newStr })
+      }
+    })
+
+    return result
+  }, [oldData, newData, action])
+
+  if (changes.length === 0) {
+    return (
+      <div className="px-5 py-4 border-t border-outline-variant/20">
+        <p className="text-body-md text-on-surface-variant text-center">
+          Sin diferencias detectadas
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-5 py-4 border-t border-outline-variant/20 bg-surface-container-low/30">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-label-sm text-on-surface-variant uppercase tracking-wider">
+          Detalle de Cambios
+        </h3>
+        <button
+          onClick={onClose}
+          className="text-[0.65rem] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+        >
+          Cerrar
+        </button>
+      </div>
+      <div className="space-y-1.5 max-h-60 overflow-y-auto">
+        {changes.map((change) => (
+          <div
+            key={change.field}
+            className="flex items-start gap-3 px-3 py-2 rounded-lg bg-surface-container-lowest text-body-md"
+          >
+            <span className="text-on-surface-variant font-medium min-w-24 shrink-0 text-[0.75rem]">
+              {change.field.replace(/_/g, ' ')}
+            </span>
+            <div className="flex-1 min-w-0 text-[0.75rem]">
+              {change.before != null && (
+                <span className="text-red-600 line-through mr-2 break-all">
+                  {change.before}
+                </span>
+              )}
+              {change.before != null && change.after != null && (
+                <span className="text-on-surface-variant mx-1">{'\u2192'}</span>
+              )}
+              {change.after != null && (
+                <span className="text-emerald-600 font-medium break-all">
+                  {change.after}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Audit Log
+// ---------------------------------------------------------------------------
+
 function AuditLog() {
   const supabase = createClient()
   const [page, setPage] = useState(1)
@@ -513,6 +634,7 @@ function AuditLog() {
   const [filterAction, setFilterAction] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const pageSize = 20
 
   // Fetch agents for filter dropdown
@@ -646,6 +768,29 @@ function AuditLog() {
         )
       },
     },
+    {
+      key: 'changes',
+      header: 'Cambios',
+      className: 'w-28',
+      render: (row) => {
+        const hasChanges = row.old_data || row.new_data
+        if (!hasChanges) return <span className="text-on-surface-variant text-xs">{'\u2014'}</span>
+        const isExpanded = expandedRowId === row.id
+        return (
+          <button
+            onClick={() => setExpandedRowId(isExpanded ? null : row.id)}
+            className={cn(
+              'text-[0.65rem] font-semibold px-2.5 py-1 rounded-lg transition-colors',
+              isExpanded
+                ? 'bg-brand-primary/10 text-brand-primary'
+                : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface',
+            )}
+          >
+            {isExpanded ? 'Ocultar' : 'Ver cambios'}
+          </button>
+        )
+      },
+    },
   ]
 
   const selectClass = cn(
@@ -758,6 +903,30 @@ function AuditLog() {
         totalCount={auditResult?.count ?? 0}
         onPageChange={setPage}
       />
+
+      {/* Expanded diff view */}
+      <AnimatePresence>
+        {expandedRowId && (() => {
+          const row = (auditResult?.data ?? []).find((r) => r.id === expandedRowId)
+          if (!row) return null
+          return (
+            <motion.div
+              key={row.id}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <AuditDiffView
+                oldData={row.old_data}
+                newData={row.new_data}
+                action={row.action}
+                onClose={() => setExpandedRowId(null)}
+              />
+            </motion.div>
+          )
+        })()}
+      </AnimatePresence>
     </motion.div>
   )
 }

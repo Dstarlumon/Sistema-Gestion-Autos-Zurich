@@ -12,6 +12,8 @@ export function useSales(params?: {
   pageSize?: number
   campaignId?: string
   agentId?: string
+  dateFrom?: string
+  dateTo?: string
 }) {
   const supabase = createClient()
   const activeCampaign = useCampaignStore((s) => s.activeCampaignId)
@@ -36,6 +38,8 @@ export function useSales(params?: {
 
       if (campaignId) query = query.eq('campaign_id', campaignId)
       if (params?.agentId) query = query.eq('agent_id', params.agentId)
+      if (params?.dateFrom) query = query.gte('created_at', params.dateFrom)
+      if (params?.dateTo) query = query.lte('created_at', params.dateTo + 'T23:59:59')
 
       const { data, error, count } = await query
       if (error) throw error

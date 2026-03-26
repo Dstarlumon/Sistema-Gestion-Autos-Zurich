@@ -17,6 +17,7 @@ import { getInitials } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 import { ROLES } from '@/lib/utils/constants'
 import type { Role } from '@/lib/utils/constants'
+import { createUserSchema } from '@/lib/validations/user.schema'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -311,13 +312,25 @@ function CreateUserDialog({
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      // Validate input with Zod before calling the server action
+      const parsed = createUserSchema.safeParse({
+        full_name: nombre,
+        email,
+        password,
+        role,
+      })
+      if (!parsed.success) {
+        const firstError = parsed.error.issues[0]?.message || 'Datos invalidos'
+        throw new Error(firstError)
+      }
+
       // Use server action to create user via admin client
       // This avoids breaking the coordinator's session
       const result = await createUserAction({
-        email,
-        password,
-        full_name: nombre,
-        role,
+        email: parsed.data.email,
+        password: parsed.data.password,
+        full_name: parsed.data.full_name,
+        role: parsed.data.role,
       })
       return result
     },

@@ -1,21 +1,13 @@
 'use client'
 
 import { motion } from 'motion/react'
+import { LottiePlayer } from './lottie-player'
 
-// Loading spinner with animated dots
+// Loading spinner — uses Lottie JSON with Motion fallback
 export function LoadingAnimation({ size = 120 }: { size?: number }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3" style={{ width: size, height: size }}>
-      <div className="flex gap-1.5">
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
-            className="w-3 h-3 rounded-full bg-primary"
-            animate={{ y: [0, -12, 0], opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
-          />
-        ))}
-      </div>
+    <div className="flex flex-col items-center justify-center gap-3">
+      <LottiePlayer src="/lotties/loading.json" width={size} height={size} />
       <p className="text-label-sm text-on-surface-variant">Cargando...</p>
     </div>
   )

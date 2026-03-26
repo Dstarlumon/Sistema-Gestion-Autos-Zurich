@@ -85,6 +85,13 @@ const PAUSE_OPTIONS: {
     bgClass: 'bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-300',
   },
   {
+    type: 'retroalimentacion',
+    label: 'Retroalimentacion',
+    icon: '\uD83D\uDCDD',
+    color: '#ec4899',
+    bgClass: 'bg-pink-100 hover:bg-pink-200 text-pink-800 dark:bg-pink-900/40 dark:hover:bg-pink-900/60 dark:text-pink-300',
+  },
+  {
     type: 'otro',
     label: 'Otro',
     icon: '\u23F8\uFE0F',

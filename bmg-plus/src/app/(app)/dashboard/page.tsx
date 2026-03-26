@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
 import { KpiCard } from '@/components/charts/kpi-card'
@@ -26,9 +26,27 @@ import { cn } from '@/lib/utils'
 export default function DashboardPage() {
   const { isAgente, canSupervise } = useRole()
   const user = useAuthStore((s) => s.user)
+  const queryClient = useQueryClient()
+  const debounceRef = useRef<NodeJS.Timeout>(undefined)
 
   // Determine the agent filter for role-aware queries
   const agentFilter = isAgente ? user?.id ?? undefined : undefined
+
+  // Realtime: invalidate dashboard stats on new gestiones/sales with 5s debounce
+  const handleDashboardUpdate = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats-extended'] })
+      queryClient.invalidateQueries({ queryKey: ['campaign-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['recent-activity'] })
+      queryClient.invalidateQueries({ queryKey: ['weekly-trend'] })
+      queryClient.invalidateQueries({ queryKey: ['agent-ranking'] })
+    }, 5000)
+  }, [queryClient])
+
+  useRealtime({ table: 'gestiones', event: 'INSERT', onData: handleDashboardUpdate })
+  useRealtime({ table: 'sales', event: 'INSERT', onData: handleDashboardUpdate })
 
   return (
     <div className="space-y-6">
@@ -82,13 +100,19 @@ function KpiRow({ agentId }: { agentId?: string }) {
       totalSales: 0,
       totalPrima: 0,
       conversionRate: 0,
+      trends: { gestiones: null as number | null, sales: null as number | null, prima: null as number | null },
     }
+    const trends = s.trends ?? { gestiones: null, sales: null, prima: null }
+
+    const makeTrend = (val: number | null | undefined) =>
+      val != null ? { value: val, isPositive: val > 0 } : undefined
+
     return [
-      { label: 'Total Gestiones', value: s.totalGestiones, accent: '#3b82f6' },
+      { label: 'Total Gestiones', value: s.totalGestiones, accent: '#3b82f6', trend: makeTrend(trends.gestiones) },
       { label: 'Contactados', value: s.contactados, accent: '#14b8a6' },
       { label: 'Cotizados', value: s.cotizados, accent: '#f59e0b' },
-      { label: 'Ventas', value: s.totalSales, accent: '#22c55e' },
-      { label: 'Prima Total', value: s.totalPrima, accent: '#a855f7', format: formatCOP },
+      { label: 'Ventas', value: s.totalSales, accent: '#22c55e', trend: makeTrend(trends.sales) },
+      { label: 'Prima Total', value: s.totalPrima, accent: '#a855f7', format: formatCOP, trend: makeTrend(trends.prima) },
       { label: 'Conversion %', value: s.conversionRate * 100, accent: '#ef4444', format: (n: number) => `${n.toFixed(1)}%` },
     ]
   }, [data])
@@ -112,6 +136,7 @@ function KpiRow({ agentId }: { agentId?: string }) {
           value={c.value}
           accent={c.accent}
           format={c.format}
+          trend={c.trend}
           delay={i * 0.05}
         />
       ))}
@@ -716,6 +741,31 @@ function useDashboardStatsFiltered(agentId?: string) {
   return useQuery({
     queryKey: ['dashboard-stats-extended', activeCampaign, agentId],
     queryFn: async () => {
+      // Current week boundaries
+      const now = new Date()
+      const dayOfWeek = now.getDay()
+      const currentWeekStart = new Date(now)
+      currentWeekStart.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+      currentWeekStart.setHours(0, 0, 0, 0)
+
+      const prevWeekStart = new Date(currentWeekStart)
+      prevWeekStart.setDate(prevWeekStart.getDate() - 7)
+      const prevWeekEnd = new Date(currentWeekStart)
+      prevWeekEnd.setMilliseconds(-1)
+
+      const currentWeekISO = currentWeekStart.toISOString()
+      const prevWeekStartISO = prevWeekStart.toISOString()
+      const prevWeekEndISO = prevWeekEnd.toISOString()
+
+      // Helper to apply common filters
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const applyFilters = (query: any) => {
+        let q = query
+        if (activeCampaign) q = q.eq('campaign_id', activeCampaign)
+        if (agentId) q = q.eq('agent_id', agentId)
+        return q
+      }
+
       // Gestiones count
       let gestionesQuery = supabase
         .from('gestiones')
@@ -737,12 +787,38 @@ function useDashboardStatsFiltered(agentId?: string) {
         .from('leads')
         .select('*', { count: 'exact', head: true })
 
+      // Previous week gestiones & sales for trend
+      let prevGestionesQuery = supabase
+        .from('gestiones')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', prevWeekStartISO)
+        .lte('created_at', prevWeekEndISO)
+      let prevSalesQuery = supabase
+        .from('sales')
+        .select('valor_prima')
+        .gte('created_at', prevWeekStartISO)
+        .lte('created_at', prevWeekEndISO)
+
+      // Current week gestiones & sales for trend
+      let currGestionesQuery = supabase
+        .from('gestiones')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', currentWeekISO)
+      let currSalesQuery = supabase
+        .from('sales')
+        .select('valor_prima')
+        .gte('created_at', currentWeekISO)
+
       if (activeCampaign) {
         gestionesQuery = gestionesQuery.eq('campaign_id', activeCampaign)
         contactadosQuery = contactadosQuery.eq('campaign_id', activeCampaign)
         cotizadosQuery = cotizadosQuery.eq('campaign_id', activeCampaign)
         salesQuery = salesQuery.eq('campaign_id', activeCampaign)
         leadsQuery = leadsQuery.eq('campaign_id', activeCampaign)
+        prevGestionesQuery = prevGestionesQuery.eq('campaign_id', activeCampaign)
+        prevSalesQuery = prevSalesQuery.eq('campaign_id', activeCampaign)
+        currGestionesQuery = currGestionesQuery.eq('campaign_id', activeCampaign)
+        currSalesQuery = currSalesQuery.eq('campaign_id', activeCampaign)
       }
 
       if (agentId) {
@@ -751,16 +827,26 @@ function useDashboardStatsFiltered(agentId?: string) {
         cotizadosQuery = cotizadosQuery.eq('agent_id', agentId)
         salesQuery = salesQuery.eq('agent_id', agentId)
         leadsQuery = leadsQuery.eq('agent_id', agentId)
+        prevGestionesQuery = prevGestionesQuery.eq('agent_id', agentId)
+        prevSalesQuery = prevSalesQuery.eq('agent_id', agentId)
+        currGestionesQuery = currGestionesQuery.eq('agent_id', agentId)
+        currSalesQuery = currSalesQuery.eq('agent_id', agentId)
       }
 
-      const [gestiones, contactados, cotizados, sales, leads] =
-        await Promise.all([
-          gestionesQuery,
-          contactadosQuery,
-          cotizadosQuery,
-          salesQuery,
-          leadsQuery,
-        ])
+      const [
+        gestiones, contactados, cotizados, sales, leads,
+        prevGestiones, prevSales, currGestiones, currSales,
+      ] = await Promise.all([
+        gestionesQuery,
+        contactadosQuery,
+        cotizadosQuery,
+        salesQuery,
+        leadsQuery,
+        prevGestionesQuery,
+        prevSalesQuery,
+        currGestionesQuery,
+        currSalesQuery,
+      ])
 
       const totalGestiones = gestiones.count || 0
       const totalContactados = contactados.count || 0
@@ -774,6 +860,26 @@ function useDashboardStatsFiltered(agentId?: string) {
       const totalLeads = leads.count || 0
       const conversionRate = totalLeads > 0 ? totalSales / totalLeads : 0
 
+      // Trend calculations (current week vs previous week)
+      const prevGestionesCount = prevGestiones.count || 0
+      const prevSalesData = prevSales.data || []
+      const prevSalesCount = prevSalesData.length
+      const prevPrima = prevSalesData.reduce(
+        (sum, s) => sum + (Number(s.valor_prima) || 0), 0
+      )
+
+      const currGestionesCount = currGestiones.count || 0
+      const currSalesData = currSales.data || []
+      const currSalesCount = currSalesData.length
+      const currPrima = currSalesData.reduce(
+        (sum, s) => sum + (Number(s.valor_prima) || 0), 0
+      )
+
+      const calcTrend = (curr: number, prev: number) => {
+        if (prev === 0) return curr > 0 ? null : null // No previous data, no trend
+        return ((curr - prev) / prev) * 100
+      }
+
       return {
         totalGestiones,
         contactados: totalContactados,
@@ -781,6 +887,11 @@ function useDashboardStatsFiltered(agentId?: string) {
         totalSales,
         totalPrima,
         conversionRate,
+        trends: {
+          gestiones: calcTrend(currGestionesCount, prevGestionesCount),
+          sales: calcTrend(currSalesCount, prevSalesCount),
+          prima: calcTrend(currPrima, prevPrima),
+        },
       }
     },
     refetchInterval: 30000,

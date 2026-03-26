@@ -15,7 +15,7 @@ import { useCampaigns } from '@/lib/queries/use-campaigns'
 import { useAgents } from '@/lib/queries/use-agents'
 import { useCampaignStore } from '@/stores/campaign-store'
 import { createClient } from '@/lib/supabase/client'
-import { formatCOP, formatDate } from '@/lib/utils/format'
+import { formatCOP, formatDate, formatPercent } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
 // ---------- Types ----------
@@ -94,6 +94,92 @@ function useSalesCount(filters: {
   })
 }
 
+// ---------- Hook: total leads count for conversion % ----------
+function useLeadsCount(filters: {
+  campaignId?: string
+  agentId?: string
+}) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ['leads-count', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+
+      if (filters.campaignId) query = query.eq('campaign_id', filters.campaignId)
+      if (filters.agentId) query = query.eq('agent_id', filters.agentId)
+
+      const { count, error } = await query
+      if (error) throw error
+      return count ?? 0
+    },
+  })
+}
+
+// ---------- Hook: weekly trend for sales KPIs ----------
+function useSalesTrend(filters: {
+  campaignId?: string
+  agentId?: string
+}) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ['sales-trend', filters],
+    queryFn: async () => {
+      const now = new Date()
+      const dayOfWeek = now.getDay()
+      const currentWeekStart = new Date(now)
+      currentWeekStart.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+      currentWeekStart.setHours(0, 0, 0, 0)
+
+      const prevWeekStart = new Date(currentWeekStart)
+      prevWeekStart.setDate(prevWeekStart.getDate() - 7)
+      const prevWeekEnd = new Date(currentWeekStart)
+      prevWeekEnd.setMilliseconds(-1)
+
+      let currQuery = supabase
+        .from('sales')
+        .select('valor_prima')
+        .gte('created_at', currentWeekStart.toISOString())
+      let prevQuery = supabase
+        .from('sales')
+        .select('valor_prima')
+        .gte('created_at', prevWeekStart.toISOString())
+        .lte('created_at', prevWeekEnd.toISOString())
+
+      if (filters.campaignId) {
+        currQuery = currQuery.eq('campaign_id', filters.campaignId)
+        prevQuery = prevQuery.eq('campaign_id', filters.campaignId)
+      }
+      if (filters.agentId) {
+        currQuery = currQuery.eq('agent_id', filters.agentId)
+        prevQuery = prevQuery.eq('agent_id', filters.agentId)
+      }
+
+      const [curr, prev] = await Promise.all([currQuery, prevQuery])
+      const currData = curr.data || []
+      const prevData = prev.data || []
+
+      const currCount = currData.length
+      const prevCount = prevData.length
+      const currPrima = currData.reduce((s, r) => s + (Number(r.valor_prima) || 0), 0)
+      const prevPrima = prevData.reduce((s, r) => s + (Number(r.valor_prima) || 0), 0)
+
+      const calcTrend = (c: number, p: number) => {
+        if (p === 0) return c > 0 ? null : null
+        return ((c - p) / p) * 100
+      }
+
+      return {
+        salesTrend: calcTrend(currCount, prevCount),
+        primaTrend: calcTrend(currPrima, prevPrima),
+      }
+    },
+  })
+}
+
 export default function VentasPage() {
   // --- Global campaign filter ---
   const activeCampaign = useCampaignStore((s) => s.activeCampaignId)
@@ -115,6 +201,8 @@ export default function VentasPage() {
     pageSize,
     campaignId: effectiveCampaign,
     agentId: filterAgent || undefined,
+    dateFrom: filterDateFrom || undefined,
+    dateTo: filterDateTo || undefined,
   })
   const { data: campaigns } = useCampaigns()
   const { data: agents } = useAgents(effectiveCampaign)
@@ -129,21 +217,23 @@ export default function VentasPage() {
     agentId: filterAgent || undefined,
   })
 
+  // Leads count for conversion % calculation
+  const { data: leadsCount } = useLeadsCount({
+    campaignId: effectiveCampaign,
+    agentId: filterAgent || undefined,
+  })
+
+  // Weekly trend for KPI indicators
+  const { data: trendData } = useSalesTrend({
+    campaignId: effectiveCampaign,
+    agentId: filterAgent || undefined,
+  })
+
+  const makeTrend = (val: number | null | undefined) =>
+    val != null ? { value: val, isPositive: val > 0 } : undefined
+
   const sales = (salesResult?.data ?? []) as SaleRow[]
   const totalCount = salesResult?.count ?? 0
-
-  // --- Date-filtered sales (client-side for date range) ---
-  const filteredSales = useMemo(() => {
-    let result = sales
-    if (filterDateFrom) {
-      result = result.filter((s) => s.created_at >= filterDateFrom)
-    }
-    if (filterDateTo) {
-      const toDate = filterDateTo + 'T23:59:59'
-      result = result.filter((s) => s.created_at <= toDate)
-    }
-    return result
-  }, [sales, filterDateFrom, filterDateTo])
 
   // --- KPI calculations (from full dataset) ---
   const totalVentas = fullCount ?? totalCount
@@ -164,6 +254,15 @@ export default function VentasPage() {
     if (!allSales) return 0
     return new Set(allSales.map((s) => s.agent_id)).size
   }, [allSales])
+
+  // Conversion %: total sales / total leads
+  const conversionPercent = useMemo(() => {
+    const totalSales = fullCount ?? 0
+    const totalLeads = leadsCount ?? 0
+    return totalSales > 0 && totalLeads > 0
+      ? (totalSales / totalLeads) * 100
+      : 0
+  }, [fullCount, leadsCount])
 
   // Best agent by sale count (from full dataset)
   const agentSaleCount = useMemo(() => {
@@ -354,12 +453,13 @@ export default function VentasPage() {
       />
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KpiCard
           label="Total Ventas"
           value={totalVentas}
           accent={ACCENT.blue}
           subtitle="ventas registradas"
+          trend={makeTrend(trendData?.salesTrend)}
           delay={0}
         />
         <KpiCard
@@ -368,6 +468,7 @@ export default function VentasPage() {
           format={formatCOP}
           accent={ACCENT.green}
           subtitle="acumulado"
+          trend={makeTrend(trendData?.primaTrend)}
           delay={0.05}
         />
         <KpiCard
@@ -379,11 +480,19 @@ export default function VentasPage() {
           delay={0.1}
         />
         <KpiCard
+          label="Conversion %"
+          value={conversionPercent}
+          format={(n: number) => `${n.toFixed(1)}%`}
+          accent="#ef4444"
+          subtitle={`${leadsCount ?? 0} leads`}
+          delay={0.15}
+        />
+        <KpiCard
           label="Agentes Activos"
           value={uniqueAgents}
           accent={ACCENT.amber}
           subtitle="con ventas"
-          delay={0.15}
+          delay={0.2}
         />
         <KpiCard
           label="Mejor Agente"
@@ -391,7 +500,7 @@ export default function VentasPage() {
           format={() => bestAgent.name}
           accent={ACCENT.purple}
           subtitle={`${bestAgent.count} ventas`}
-          delay={0.2}
+          delay={0.25}
         />
       </div>
 
@@ -493,7 +602,7 @@ export default function VentasPage() {
         {/* Data Table */}
         <DataTable<SaleRow>
           columns={columns}
-          data={filteredSales}
+          data={sales}
           isLoading={isLoading}
           emptyMessage="No hay ventas registradas con los filtros seleccionados."
           page={page}

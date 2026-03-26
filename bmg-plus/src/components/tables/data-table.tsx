@@ -1,10 +1,10 @@
 'use client'
 
-import { motion } from 'motion/react'
+import { useRef, useMemo } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { cn } from '@/lib/utils'
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
@@ -85,10 +85,29 @@ export function DataTable<T extends Record<string, unknown>>({
     totalCount != null ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1
   const showPagination = totalCount != null && onPageChange != null
 
+  // Track previous row IDs to detect newly-added rows
+  const prevIdsRef = useRef<Set<string | number>>(new Set())
+  const newRowIds = useMemo(() => {
+    const currentIds = new Set(
+      data.map((row, i) => (row.id as string | number) ?? i)
+    )
+    const newIds = new Set<string | number>()
+    currentIds.forEach((id) => {
+      if (prevIdsRef.current.size > 0 && !prevIdsRef.current.has(id)) {
+        newIds.add(id)
+      }
+    })
+    prevIdsRef.current = currentIds
+    return newIds
+  }, [data])
+
+  // Stable key for crossfade when dataset changes (filter/sort)
+  const dataKey = data.map((d) => (d as Record<string, unknown>).id ?? '').join(',')
+
   return (
     <div className="w-full">
       {/* Table */}
-      <Table className="min-w-[600px]">
+      <Table className="min-w-150">
         {/* Header */}
         <TableHeader>
           <TableRow>
@@ -116,61 +135,75 @@ export function DataTable<T extends Record<string, unknown>>({
           </TableRow>
         </TableHeader>
 
-        {/* Body */}
-        <TableBody>
-          {/* Loading skeleton */}
-          {isLoading &&
-            Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonRow key={`skeleton-${i}`} cols={columns.length} />
-            ))}
+        {/* Body with crossfade on data change */}
+        <AnimatePresence mode="wait">
+          <motion.tbody
+            key={dataKey}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            {/* Loading skeleton */}
+            {isLoading &&
+              Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonRow key={`skeleton-${i}`} cols={columns.length} />
+              ))}
 
-          {/* Empty state */}
-          {!isLoading && data.length === 0 && (
-            <TableRow>
-              <TableCell
-                colSpan={columns.length}
-                className="text-center py-16 text-body-md text-on-surface-variant"
-              >
-                {emptyMessage}
-              </TableCell>
-            </TableRow>
-          )}
+            {/* Empty state */}
+            {!isLoading && data.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="text-center py-16 text-body-md text-on-surface-variant"
+                >
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            )}
 
-          {/* Data rows */}
-          {!isLoading &&
-            data.map((row, rowIndex) => (
-              <motion.tr
-                key={(row.id as string | number) ?? rowIndex}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.2,
-                  delay: rowIndex * 0.02,
-                  ease: 'easeOut',
-                }}
-                onClick={() => onRowClick?.(row)}
-                className={cn(
-                  'transition-colors duration-150',
-                  'hover:bg-surface-container-low',
-                  onRowClick && 'cursor-pointer',
-                )}
-              >
-                {columns.map((col) => (
-                  <TableCell
-                    key={col.key}
+            {/* Data rows */}
+            {!isLoading &&
+              data.map((row, rowIndex) => {
+                const rowId = (row.id as string | number) ?? rowIndex
+                const isNewRow = newRowIds.has(rowId)
+
+                return (
+                  <motion.tr
+                    key={rowId}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.2,
+                      delay: rowIndex * 0.02,
+                      ease: 'easeOut',
+                    }}
+                    onClick={() => onRowClick?.(row)}
                     className={cn(
-                      'px-4 py-3 text-body-md text-on-surface',
-                      col.className,
+                      'transition-colors duration-500',
+                      'hover:bg-surface-container-low',
+                      onRowClick && 'cursor-pointer',
+                      isNewRow && 'bg-emerald-50 animate-pulse',
                     )}
                   >
-                    {col.render
-                      ? col.render(row)
-                      : (row[col.key] as React.ReactNode) ?? '\u2014'}
-                  </TableCell>
-                ))}
-              </motion.tr>
-            ))}
-        </TableBody>
+                    {columns.map((col) => (
+                      <TableCell
+                        key={col.key}
+                        className={cn(
+                          'px-4 py-3 text-body-md text-on-surface',
+                          col.className,
+                        )}
+                      >
+                        {col.render
+                          ? col.render(row)
+                          : (row[col.key] as React.ReactNode) ?? '\u2014'}
+                      </TableCell>
+                    ))}
+                  </motion.tr>
+                )
+              })}
+          </motion.tbody>
+        </AnimatePresence>
       </Table>
 
       {/* Pagination */}

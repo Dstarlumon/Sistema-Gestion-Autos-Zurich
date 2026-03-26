@@ -27,7 +27,7 @@ export default function ReportesPage() {
   const [dateTo, setDateTo] = useState('')
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([])
   const [selectedAgent, setSelectedAgent] = useState('')
-  const [isExporting, setIsExporting] = useState<'csv' | 'excel' | null>(null)
+  const [isExporting, setIsExporting] = useState<'csv' | 'excel' | 'pdf' | null>(null)
 
   // --- Data sources ---
   const { data: campaigns } = useCampaigns()
@@ -35,7 +35,7 @@ export default function ReportesPage() {
 
   // --- Export handler ---
   const handleExport = useCallback(
-    async (type: 'csv' | 'excel') => {
+    async (type: 'csv' | 'excel' | 'pdf') => {
       setIsExporting(type)
       try {
         const filters: Record<string, unknown> = {}
@@ -56,7 +56,7 @@ export default function ReportesPage() {
 
         // Trigger browser download
         const blob = await res.blob()
-        const ext = type === 'csv' ? 'csv' : 'xlsx'
+        const ext = type === 'csv' ? 'csv' : type === 'pdf' ? 'html' : 'xlsx'
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
@@ -129,6 +129,17 @@ export default function ReportesPage() {
             )}
           >
             {isExporting === 'csv' ? 'Exportando...' : 'Exportar CSV'}
+          </button>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={isExporting !== null}
+            className={cn(
+              'px-4 py-2 text-xs font-semibold rounded-lg transition-colors',
+              'bg-surface-container text-on-surface-variant hover:bg-surface-container-high',
+              'disabled:opacity-40 disabled:cursor-not-allowed',
+            )}
+          >
+            {isExporting === 'pdf' ? 'Exportando...' : 'Exportar PDF'}
           </button>
         </div>
       </PageHeader>

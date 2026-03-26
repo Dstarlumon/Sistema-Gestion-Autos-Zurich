@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { CommandPalette } from '@/components/shared/command-palette'
 import { PageTransition } from '@/components/shared/page-transition'
+import { OnboardingTour } from '@/components/shared/onboarding-tour'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import type { UserProfile } from '@/types/auth.types'
 
@@ -84,6 +85,9 @@ export default function AppShell({ children, initialProfile }: AppShellProps) {
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
       />
+
+      {/* Onboarding tour for first-time users */}
+      <OnboardingTour />
     </div>
   )
 }

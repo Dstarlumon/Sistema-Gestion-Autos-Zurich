@@ -17,5 +17,13 @@ export const registerSchema = z
     path: ['confirm_password'],
   })
 
+export const createUserSchema = z.object({
+  full_name: z.string().min(2, 'Nombre requerido'),
+  email: z.string().email('Email invalido'),
+  password: z.string().min(6, 'Minimo 6 caracteres'),
+  role: z.enum(['coordinador', 'supervisor', 'agente']),
+})
+
 export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
+export type CreateUserInput = z.infer<typeof createUserSchema>

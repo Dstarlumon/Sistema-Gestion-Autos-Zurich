@@ -148,6 +148,47 @@ export async function POST(request: NextRequest) {
     })
   }
 
+  if (type === 'pdf') {
+    // Generate a printable HTML report styled for PDF printing
+    if (data.length === 0) {
+      return new NextResponse('No data', { status: 404 })
+    }
+    const headers = Object.keys(data[0])
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Reporte ${module}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 2cm; }
+          h1 { color: #222831; font-size: 18px; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 1em; }
+          th { background: #222831; color: white; padding: 8px; text-align: left; }
+          td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+          tr:nth-child(even) td { background: #f8f9fa; }
+          .meta { color: #666; font-size: 12px; margin-bottom: 1em; }
+          @media print { body { margin: 1cm; } }
+        </style>
+      </head>
+      <body>
+        <h1>BMG+ — Reporte de ${module}</h1>
+        <p class="meta">Generado: ${new Date().toLocaleString('es-CO')}</p>
+        <table>
+          <thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${data.map((row) => `<tr>${headers.map((h) => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>
+      </body>
+      </html>
+    `
+    return new NextResponse(html, {
+      headers: {
+        'Content-Type': 'text/html',
+        'Content-Disposition': `attachment; filename="${module}_report.html"`,
+      },
+    })
+  }
+
   // Default: return JSON
   return NextResponse.json({ data, count: data.length })
 }

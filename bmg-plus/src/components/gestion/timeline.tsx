@@ -191,8 +191,13 @@ export function Timeline({
 
   return (
     <div className="relative pl-6">
-      {/* Vertical line */}
-      <div className="absolute left-1.75 top-2 bottom-2 w-px bg-border" />
+      {/* Vertical line with growth animation */}
+      <motion.div
+        className="absolute left-1.75 top-2 w-0.5 bg-border"
+        initial={{ height: 0 }}
+        animate={{ height: 'calc(100% - 1rem)' }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+      />
 
       {/* Gestion nodes */}
       {gestionItems.map(

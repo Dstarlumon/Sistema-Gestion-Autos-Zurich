@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { motion } from 'motion/react'
+import { motion, LayoutGroup } from 'motion/react'
 import {
   LayoutDashboard,
   Users,
@@ -159,44 +159,53 @@ function SidebarContent({
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3 space-y-5 scrollbar-thin scrollbar-thumb-slate-700">
-        {sections.map((section) => (
-          <div key={section.title}>
-            {!isCollapsed && (
-              <div className="text-label-sm text-slate-500 px-3 mb-2 tracking-wide">
-                {section.title}
+        <LayoutGroup>
+          {sections.map((section) => (
+            <div key={section.title}>
+              {!isCollapsed && (
+                <div className="text-label-sm text-slate-500 px-3 mb-2 tracking-wide">
+                  {section.title}
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {section.items.map((item) => {
+                  const active = isActive(item.href)
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={isCollapsed ? item.label : undefined}
+                      onClick={handleNavClick}
+                      className={`
+                        relative flex items-center gap-3 rounded-lg transition-colors duration-150
+                        ${isCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2'}
+                        ${
+                          active
+                            ? 'text-white'
+                            : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                        }
+                      `}
+                    >
+                      {active && (
+                        <motion.div
+                          layoutId="sidebar-active"
+                          className="absolute inset-0 rounded-lg bg-linear-to-r from-[#fa5058] to-[#66cfd0] shadow-lg shadow-[#fa5058]/20"
+                          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        />
+                      )}
+                      <span className="relative shrink-0">{item.icon}</span>
+                      {!isCollapsed && (
+                        <span className={`relative text-sm ${active ? 'font-medium' : ''} truncate`}>
+                          {item.label}
+                        </span>
+                      )}
+                    </Link>
+                  )
+                })}
               </div>
-            )}
-            <div className="space-y-0.5">
-              {section.items.map((item) => {
-                const active = isActive(item.href)
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={isCollapsed ? item.label : undefined}
-                    onClick={handleNavClick}
-                    className={`
-                      flex items-center gap-3 rounded-lg transition-colors duration-150
-                      ${isCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2'}
-                      ${
-                        active
-                          ? 'bg-linear-to-r from-[#fa5058] to-[#66cfd0] text-white shadow-lg shadow-[#fa5058]/20'
-                          : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-                      }
-                    `}
-                  >
-                    <span className="shrink-0">{item.icon}</span>
-                    {!isCollapsed && (
-                      <span className={`text-sm ${active ? 'font-medium' : ''} truncate`}>
-                        {item.label}
-                      </span>
-                    )}
-                  </Link>
-                )
-              })}
             </div>
-          </div>
-        ))}
+          ))}
+        </LayoutGroup>
       </nav>
 
       {/* Collapse toggle — desktop only */}
