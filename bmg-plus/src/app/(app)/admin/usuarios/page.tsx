@@ -5,13 +5,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { Dialog } from '@base-ui/react/dialog'
 import { createClient } from '@/lib/supabase/client'
+import { createUser as createUserAction } from './actions'
 import { PageHeader } from '@/components/shared/page-header'
 import { DataTable, type Column } from '@/components/tables/data-table'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { useRole } from '@/hooks/use-role'
-import { useAuthStore } from '@/stores/auth-store'
 import { useCampaigns } from '@/lib/queries/use-campaigns'
 import { getInitials } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -293,9 +293,7 @@ function CreateUserDialog({
   open: boolean
   onClose: () => void
 }) {
-  const supabase = createClient()
   const queryClient = useQueryClient()
-  const currentUser = useAuthStore((s) => s.user)
 
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
@@ -313,31 +311,15 @@ function CreateUserDialog({
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      // Sign up user with metadata — Supabase will create the auth user
-      // and the profiles trigger will create the profile row
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      // Use server action to create user via admin client
+      // This avoids breaking the coordinator's session
+      const result = await createUserAction({
         email,
         password,
-        options: {
-          data: {
-            full_name: nombre,
-            role,
-            organization_id: currentUser?.organization_id,
-          },
-        },
+        full_name: nombre,
+        role,
       })
-      if (signUpError) throw signUpError
-
-      // Update the profile with the correct role (trigger might default to agente)
-      if (data.user) {
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ role, full_name: nombre })
-          .eq('id', data.user.id)
-        if (updateError) throw updateError
-      }
-
-      return data
+      return result
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-profiles'] })

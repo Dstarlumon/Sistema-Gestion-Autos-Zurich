@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+function verifySignature(received: string, secret: string): boolean {
+  if (received.length !== secret.length) return false
+  try {
+    return timingSafeEqual(Buffer.from(received), Buffer.from(secret))
+  } catch {
+    return false
+  }
+}
+
 export async function POST(request: NextRequest) {
-  // 1. Verify webhook signature (VITXI_WEBHOOK_SECRET)
+  // 1. Verify webhook signature (VITXI_WEBHOOK_SECRET) with timing-safe comparison
   const signature = request.headers.get('x-vitxi-signature')
   const secret = process.env.VITXI_WEBHOOK_SECRET
-  if (secret && signature !== secret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (secret) {
+    if (!signature || !verifySignature(signature, secret)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
   const event = await request.json()

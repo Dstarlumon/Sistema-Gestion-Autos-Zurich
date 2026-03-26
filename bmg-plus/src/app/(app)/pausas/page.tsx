@@ -634,6 +634,9 @@ function SupervisorView() {
 // Supervisor Agent Card
 // ---------------------------------------------------------------------------
 
+/** Max pause duration in minutes before abuse highlighting */
+const PAUSE_ABUSE_THRESHOLD_MINUTES = 60
+
 function SupervisorAgentCard({
   agent,
   index,
@@ -644,6 +647,14 @@ function SupervisorAgentCard({
   const pauseOption = agent.activePause
     ? PAUSE_OPTIONS.find((p) => p.type === agent.activePause?.pause_type)
     : null
+
+  // Check if agent's pause exceeds the threshold
+  const isAbuse = (() => {
+    if (agent.status !== 'pausa' || !agent.activePause?.started_at) return false
+    const start = new Date(agent.activePause.started_at).getTime()
+    const elapsedMinutes = (Date.now() - start) / 60_000
+    return elapsedMinutes > PAUSE_ABUSE_THRESHOLD_MINUTES
+  })()
 
   return (
     <motion.div
@@ -656,8 +667,9 @@ function SupervisorAgentCard({
         'flex items-center gap-3 rounded-xl p-4 transition-colors',
         agent.status === 'disponible' && 'bg-emerald-50/60 dark:bg-emerald-950/20',
         agent.status === 'en_llamada' && 'bg-blue-50/60 dark:bg-blue-950/20',
-        agent.status === 'pausa' && 'bg-amber-50/60 dark:bg-amber-950/20',
-        agent.status === 'offline' && 'bg-slate-50/60 dark:bg-slate-900/20'
+        agent.status === 'pausa' && !isAbuse && 'bg-amber-50/60 dark:bg-amber-950/20',
+        agent.status === 'offline' && 'bg-slate-50/60 dark:bg-slate-900/20',
+        isAbuse && 'bg-red-50/60 dark:bg-red-950/20 ring-2 ring-red-500/60'
       )}
     >
       {/* Avatar with status dot */}
@@ -670,6 +682,13 @@ function SupervisorAgentCard({
         <span className="absolute -bottom-0.5 -right-0.5">
           <StatusDot status={agent.status} />
         </span>
+        {/* Pulsing red dot for pause abuse */}
+        {isAbuse && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+          </span>
+        )}
       </div>
 
       {/* Info */}
@@ -682,6 +701,11 @@ function SupervisorAgentCard({
             status={agent.status}
             label={agent.status.replace(/_/g, ' ')}
           />
+          {isAbuse && (
+            <span className="text-[0.6rem] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
+              Exceso
+            </span>
+          )}
         </div>
         {/* Pause details */}
         {agent.status === 'pausa' && agent.activePause && (

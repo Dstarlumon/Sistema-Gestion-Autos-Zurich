@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader } from '@/components/shared/page-header'
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/stores/auth-store'
+import { useRealtime } from '@/hooks/use-realtime'
 import { formatPhone, formatTime, getInitials } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
@@ -410,6 +411,7 @@ function ChatHeader({ conversation }: { conversation: Conversation }) {
 
 function ChatMessages({ conversationId }: { conversationId: string }) {
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
   const { data: messages, isLoading } = useQuery({
     queryKey: ['whatsapp-messages', conversationId],
@@ -424,6 +426,38 @@ function ChatMessages({ conversationId }: { conversationId: string }) {
       return (data || []) as Message[]
     },
     refetchInterval: 15000,
+  })
+
+  // Realtime subscription for new messages in this conversation
+  const handleRealtimeMessage = useCallback(
+    (payload: { eventType: string; new: Record<string, unknown> }) => {
+      const row = payload.new as unknown as Message | undefined
+      if (!row || row.conversation_id !== conversationId) return
+
+      if (payload.eventType === 'INSERT') {
+        // Append the new message optimistically
+        queryClient.setQueryData(
+          ['whatsapp-messages', conversationId],
+          (old: Message[] | undefined) => {
+            if (!old) return [row]
+            // Avoid duplicates
+            if (old.some((m) => m.id === row.id)) return old
+            return [...old, row]
+          }
+        )
+        // Also refresh conversation list to update unread counts
+        queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] })
+      }
+    },
+    [conversationId, queryClient]
+  )
+
+  useRealtime({
+    table: 'messages',
+    event: 'INSERT',
+    filter: `conversation_id=eq.${conversationId}`,
+    onData: handleRealtimeMessage as Parameters<typeof useRealtime>[0]['onData'],
+    enabled: !!conversationId,
   })
 
   return (

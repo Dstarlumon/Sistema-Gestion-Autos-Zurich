@@ -5,6 +5,10 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { PageHeader } from '@/components/shared/page-header'
 import { KpiCard } from '@/components/charts/kpi-card'
+import { NivoFunnelChart } from '@/components/charts/nivo-funnel-chart'
+import { NivoSunburstChart } from '@/components/charts/nivo-sunburst-chart'
+import { NivoHeatMapChart } from '@/components/charts/nivo-heatmap-chart'
+import { NivoLineChart } from '@/components/charts/nivo-line-chart'
 import { TableFilters } from '@/components/tables/table-filters'
 import { useCampaigns } from '@/lib/queries/use-campaigns'
 import { useAgents } from '@/lib/queries/use-agents'
@@ -16,21 +20,9 @@ import { cn } from '@/lib/utils'
 // Types
 // ============================================================
 
-interface FunnelStep {
-  label: string
-  count: number
-  color: string
-}
-
 interface TipificacionBreakdown {
   reason: string
   count: number
-}
-
-interface HeatmapCell {
-  day: string
-  category: string
-  value: number
 }
 
 interface SourceQuality {
@@ -40,16 +32,8 @@ interface SourceQuality {
   pctVenta: number
 }
 
-interface WeeklyTrendPoint {
-  week: string
-  noApto: number
-  noContacto: number
-  noCotiza: number
-  venta: number
-}
-
 // ============================================================
-// Data fetching hook
+// Data fetching hooks
 // ============================================================
 
 function useCalidadData(filters: {
@@ -111,57 +95,47 @@ function useCalidadData(filters: {
   })
 }
 
-// ============================================================
-// Placeholder data (used when real data is empty / for structure)
-// ============================================================
+/** Hook to fetch DB view data for heatmaps and recovery */
+function useCalidadViews(filters: {
+  campaignId?: string
+}) {
+  const supabase = createClient()
 
-const PLACEHOLDER_FUNNEL: FunnelStep[] = [
-  { label: 'Leads Cargados', count: 1200, color: '#3b82f6' },
-  { label: 'Contactados', count: 840, color: '#0ea5e9' },
-  { label: 'Cotizados', count: 310, color: '#d97706' },
-  { label: 'En Proceso', count: 145, color: '#f97316' },
-  { label: 'Ventas', count: 62, color: '#059669' },
-]
+  return useQuery({
+    queryKey: ['calidad-views', filters],
+    queryFn: async () => {
+      // Weekday results view
+      let weekdayQuery = supabase.from('lead_results_by_weekday').select('*')
+      if (filters.campaignId) weekdayQuery = weekdayQuery.eq('campaign_id', filters.campaignId)
 
-const PLACEHOLDER_NO_COTIZAN: TipificacionBreakdown[] = [
-  { reason: 'No le interesa', count: 180 },
-  { reason: 'Ya tiene poliza con otra aseguradora', count: 95 },
-  { reason: 'Precio muy alto', count: 72 },
-  { reason: 'Vehiculo no aplica', count: 45 },
-  { reason: 'Informacion incorrecta', count: 30 },
-  { reason: 'Otro', count: 18 },
-]
+      // Hourly results view
+      let hourQuery = supabase.from('lead_results_by_hour').select('*')
+      if (filters.campaignId) hourQuery = hourQuery.eq('campaign_id', filters.campaignId)
 
-const PLACEHOLDER_HEATMAP: HeatmapCell[] = (() => {
-  const days = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']
-  const categories = ['Contactado', 'No Contacto', 'Cotizado', 'Venta', 'No Apto']
-  const cells: HeatmapCell[] = []
-  for (const day of days) {
-    for (const cat of categories) {
-      cells.push({
-        day,
-        category: cat,
-        value: Math.floor(Math.random() * 50) + 5,
-      })
-    }
-  }
-  return cells
-})()
+      // No contact recovery view
+      let recoveryQuery = supabase.from('no_contact_recovery').select('*')
+      if (filters.campaignId) recoveryQuery = recoveryQuery.eq('campaign_id', filters.campaignId)
 
-const PLACEHOLDER_SOURCES: SourceQuality[] = [
-  { source: 'Base Fria', totalLeads: 400, pctApto: 45, pctVenta: 8 },
-  { source: 'Referido', totalLeads: 150, pctApto: 78, pctVenta: 22 },
-  { source: 'Inbound Web', totalLeads: 280, pctApto: 62, pctVenta: 15 },
-  { source: 'Redes Sociales', totalLeads: 120, pctApto: 35, pctVenta: 5 },
-  { source: 'Renovacion', totalLeads: 250, pctApto: 82, pctVenta: 35 },
-]
+      // Lead contact attempts view
+      let attemptsQuery = supabase.from('lead_contact_attempts').select('*')
+      if (filters.campaignId) attemptsQuery = attemptsQuery.eq('campaign_id', filters.campaignId)
 
-const PLACEHOLDER_WEEKLY_TREND: WeeklyTrendPoint[] = [
-  { week: 'Sem 1', noApto: 18, noContacto: 25, noCotiza: 30, venta: 8 },
-  { week: 'Sem 2', noApto: 15, noContacto: 22, noCotiza: 28, venta: 10 },
-  { week: 'Sem 3', noApto: 20, noContacto: 18, noCotiza: 25, venta: 12 },
-  { week: 'Sem 4', noApto: 12, noContacto: 20, noCotiza: 22, venta: 15 },
-]
+      const [weekdayRes, hourRes, recoveryRes, attemptsRes] = await Promise.all([
+        weekdayQuery,
+        hourQuery,
+        recoveryQuery,
+        attemptsQuery,
+      ])
+
+      return {
+        weekdayData: weekdayRes.data ?? [],
+        hourData: hourRes.data ?? [],
+        recoveryData: recoveryRes.data ?? [],
+        attemptsData: attemptsRes.data ?? [],
+      }
+    },
+  })
+}
 
 // ============================================================
 // Section Card wrapper
@@ -202,59 +176,17 @@ function SectionCard({
 // Sub-components
 // ============================================================
 
-/** Conversion funnel — bar-based progressive narrowing */
-function ConversionFunnel({ steps }: { steps: FunnelStep[] }) {
-  const maxCount = steps[0]?.count ?? 1
-
-  return (
-    <div className="space-y-3">
-      {steps.map((step, i) => {
-        const widthPct = Math.max((step.count / maxCount) * 100, 8)
-        const pctOfPrevious =
-          i === 0
-            ? 100
-            : steps[i - 1].count > 0
-              ? (step.count / steps[i - 1].count) * 100
-              : 0
-
-        return (
-          <motion.div
-            key={step.label}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: i * 0.08 }}
-            className="flex items-center gap-4"
-          >
-            <span className="w-28 text-body-md text-on-surface-variant text-right shrink-0">
-              {step.label}
-            </span>
-            <div className="flex-1 relative">
-              <div
-                className="h-9 rounded-lg flex items-center px-3 transition-all duration-700"
-                style={{
-                  width: `${widthPct}%`,
-                  backgroundColor: step.color,
-                  minWidth: '60px',
-                }}
-              >
-                <span className="text-white text-xs font-bold tabular-nums">
-                  {step.count.toLocaleString()}
-                </span>
-              </div>
-            </div>
-            <span className="text-xs text-on-surface-variant tabular-nums w-12 text-right shrink-0">
-              {pctOfPrevious.toFixed(0)}%
-            </span>
-          </motion.div>
-        )
-      })}
-    </div>
-  )
-}
-
 /** Progress-bar list for "why they don't quote" */
 function ReasonBreakdown({ items }: { items: TipificacionBreakdown[] }) {
   const maxCount = items[0]?.count ?? 1
+
+  if (items.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-48 text-on-surface-variant text-sm">
+        Sin datos suficientes
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -283,77 +215,16 @@ function ReasonBreakdown({ items }: { items: TipificacionBreakdown[] }) {
   )
 }
 
-/** Heatmap table — days vs categories with intensity-colored cells */
-function HeatmapTable({ cells }: { cells: HeatmapCell[] }) {
-  const days = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']
-  const categories = [...new Set(cells.map((c) => c.category))]
-  const maxValue = Math.max(...cells.map((c) => c.value), 1)
-
-  const getCellValue = (day: string, cat: string) =>
-    cells.find((c) => c.day === day && c.category === cat)?.value ?? 0
-
-  const getIntensity = (value: number) => {
-    const ratio = value / maxValue
-    if (ratio > 0.75) return 'bg-brand-primary/80 text-white'
-    if (ratio > 0.5) return 'bg-brand-primary/50 text-on-surface'
-    if (ratio > 0.25) return 'bg-brand-primary/25 text-on-surface'
-    return 'bg-brand-primary/10 text-on-surface-variant'
-  }
-
-  return (
-    <div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-125">
-          <thead>
-            <tr>
-              <th className="text-left px-3 py-2 text-label-sm text-on-surface-variant">
-                Dia
-              </th>
-              {categories.map((cat) => (
-                <th
-                  key={cat}
-                  className="text-center px-3 py-2 text-label-sm text-on-surface-variant"
-                >
-                  {cat}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {days.map((day) => (
-              <tr key={day}>
-                <td className="px-3 py-2 text-body-md text-on-surface font-medium">
-                  {day}
-                </td>
-                {categories.map((cat) => {
-                  const val = getCellValue(day, cat)
-                  return (
-                    <td key={cat} className="px-1 py-1 text-center">
-                      <div
-                        className={cn(
-                          'rounded-md px-2 py-1.5 text-xs font-semibold tabular-nums transition-colors',
-                          getIntensity(val),
-                        )}
-                      >
-                        {val}
-                      </div>
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-[0.65rem] text-on-surface-variant mt-3 italic">
-        Basado en fecha de creacion del lead, no fecha de carga
-      </p>
-    </div>
-  )
-}
-
 /** Source quality table with inline bars */
 function SourceQualityTable({ sources }: { sources: SourceQuality[] }) {
+  if (sources.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-48 text-on-surface-variant text-sm">
+        Sin datos suficientes
+      </div>
+    )
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -416,62 +287,6 @@ function SourceQualityTable({ sources }: { sources: SourceQuality[] }) {
   )
 }
 
-/** Weekly trend — placeholder multi-line structure */
-function WeeklyTrendChart({ data }: { data: WeeklyTrendPoint[] }) {
-  const series = [
-    { key: 'noApto' as const, label: 'No Apto', color: '#dc2626' },
-    { key: 'noContacto' as const, label: 'No Contacto', color: '#6b7280' },
-    { key: 'noCotiza' as const, label: 'No Cotiza', color: '#d97706' },
-    { key: 'venta' as const, label: 'Venta', color: '#059669' },
-  ]
-
-  return (
-    <div>
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 mb-4">
-        {series.map((s) => (
-          <div key={s.key} className="flex items-center gap-1.5">
-            <span
-              className="w-3 h-0.75 rounded-full"
-              style={{ backgroundColor: s.color }}
-            />
-            <span className="text-xs text-on-surface-variant">{s.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Simplified bar representation per week */}
-      <div className="space-y-3">
-        {data.map((point) => (
-          <div key={point.week} className="flex items-center gap-3">
-            <span className="w-14 text-xs text-on-surface-variant shrink-0 text-right">
-              {point.week}
-            </span>
-            <div className="flex-1 flex gap-1 h-6">
-              {series.map((s) => (
-                <div
-                  key={s.key}
-                  className="rounded transition-all duration-500"
-                  style={{
-                    backgroundColor: s.color,
-                    width: `${point[s.key]}%`,
-                    minWidth: point[s.key] > 0 ? '4px' : '0',
-                  }}
-                  title={`${s.label}: ${point[s.key]}%`}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-[0.65rem] text-on-surface-variant mt-3 italic">
-        Estructura preparada para Recharts multi-line (Phase 10)
-      </p>
-    </div>
-  )
-}
-
 // ============================================================
 // Main Page
 // ============================================================
@@ -497,14 +312,21 @@ export default function CalidadPage() {
     dateFrom: filterDateFrom || undefined,
     dateTo: filterDateTo || undefined,
   })
+  const { data: viewsData } = useCalidadViews({
+    campaignId: effectiveCampaign,
+  })
 
   const leads = calidadData?.leads ?? []
   const gestiones = calidadData?.gestiones ?? []
   const sales = calidadData?.sales ?? []
+  const weekdayData = viewsData?.weekdayData ?? []
+  const hourData = viewsData?.hourData ?? []
+  const recoveryData = viewsData?.recoveryData ?? []
+  const attemptsData = viewsData?.attemptsData ?? []
 
-  // --- Build funnel from real data (fallback to placeholder if empty) ---
-  const funnel: FunnelStep[] = useMemo(() => {
-    if (leads.length === 0) return PLACEHOLDER_FUNNEL
+  // --- Build funnel from real data ---
+  const funnelData = useMemo(() => {
+    if (leads.length === 0) return []
 
     const totalLeads = leads.length
     const contactados = leads.filter(
@@ -519,117 +341,176 @@ export default function CalidadPage() {
     const ventas = leads.filter((l) => l.status === 'venta').length
 
     return [
-      { label: 'Leads Cargados', count: totalLeads, color: '#3b82f6' },
-      { label: 'Contactados', count: contactados, color: '#0ea5e9' },
-      { label: 'Cotizados', count: cotizados, color: '#d97706' },
-      { label: 'En Proceso', count: enProceso, color: '#f97316' },
-      { label: 'Ventas', count: ventas, color: '#059669' },
+      { id: 'Leads', value: totalLeads, label: 'Leads Cargados' },
+      { id: 'Contactados', value: contactados, label: 'Contactados' },
+      { id: 'Cotizados', value: cotizados, label: 'Cotizados' },
+      { id: 'En Proceso', value: enProceso, label: 'En Proceso' },
+      { id: 'Ventas', value: ventas, label: 'Ventas' },
     ]
   }, [leads])
 
+  // --- Sunburst: build tree from tipificacion data ---
+  const sunburstData = useMemo(() => {
+    if (gestiones.length === 0) return { name: 'Leads', children: [] }
+
+    // Group gestiones by tipificacion parent and child
+    const groups: Record<string, Record<string, number>> = {}
+    for (const g of gestiones) {
+      const tipTree = g.tipificacion_tree as unknown as
+        | { name: string; parent_id: string | null; level: number }
+        | null
+      if (!tipTree) continue
+
+      const parentName = tipTree.parent_id ? 'Subcategoria' : tipTree.name
+      const childName = tipTree.parent_id ? tipTree.name : 'General'
+
+      if (!groups[parentName]) groups[parentName] = {}
+      groups[parentName][childName] = (groups[parentName][childName] || 0) + 1
+    }
+
+    return {
+      name: 'Leads',
+      children: Object.entries(groups).map(([parentName, children]) => ({
+        name: parentName,
+        children: Object.entries(children).map(([childName, count]) => ({
+          name: childName,
+          value: count,
+        })),
+      })),
+    }
+  }, [gestiones])
+
   // --- "Why don't they quote?" from tipificacion data ---
   const noCotizanReasons: TipificacionBreakdown[] = useMemo(() => {
-    if (gestiones.length === 0) return PLACEHOLDER_NO_COTIZAN
+    if (gestiones.length === 0) return []
 
-    // Group gestiones by tipificacion name (level 1 or 2)
     const tipCounts: Record<string, number> = {}
     for (const g of gestiones) {
       const tipTree = g.tipificacion_tree as unknown as
         | { name: string; parent_id: string | null; level: number }
         | null
       if (!tipTree) continue
-      // For "no cotiza" analysis, look at non-sale, non-contact tipificaciones
       const name = tipTree.name ?? 'Sin tipificacion'
       tipCounts[name] = (tipCounts[name] || 0) + 1
     }
 
-    const sorted = Object.entries(tipCounts)
+    return Object.entries(tipCounts)
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8)
-
-    return sorted.length > 0 ? sorted : PLACEHOLDER_NO_COTIZAN
   }, [gestiones])
 
-  // --- Heatmap from real data or placeholder ---
-  const heatmapCells: HeatmapCell[] = useMemo(() => {
-    if (leads.length === 0) return PLACEHOLDER_HEATMAP
+  // --- Weekday heatmap from DB view ---
+  const weekdayHeatmapData = useMemo(() => {
+    if (weekdayData.length === 0) return []
 
-    /*
-     * Real query would be:
-     * SELECT
-     *   EXTRACT(DOW FROM leads.created_at) AS day_of_week,
-     *   leads.status AS category,
-     *   COUNT(*) AS value
-     * FROM leads
-     * WHERE campaign_id = ? AND created_at BETWEEN ? AND ?
-     * GROUP BY day_of_week, category
-     */
-    const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab']
-    const statusMap: Record<string, string> = {
-      nuevo: 'Nuevo',
-      contactado: 'Contactado',
-      cotizado: 'Cotizado',
-      en_proceso: 'En Proceso',
-      venta: 'Venta',
-      no_apto: 'No Apto',
-      cerrado: 'Cerrado',
+    const dayNames: Record<number, string> = {
+      0: 'Dom', 1: 'Lun', 2: 'Mar', 3: 'Mie', 4: 'Jue', 5: 'Vie', 6: 'Sab',
     }
+    const days = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']
+    const categories = [...new Set(weekdayData.map((d) => d.root_category ?? 'Otro'))]
 
-    const cellMap: Record<string, number> = {}
-    for (const lead of leads) {
-      const d = new Date(lead.created_at)
-      const day = dayNames[d.getDay()]
-      const cat = statusMap[lead.status] ?? lead.status
-      const key = `${day}|${cat}`
-      cellMap[key] = (cellMap[key] || 0) + 1
-    }
-
-    const categories = [...new Set(Object.keys(cellMap).map((k) => k.split('|')[1]))]
-    const cells: HeatmapCell[] = []
-    for (const day of ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']) {
-      for (const cat of categories) {
-        cells.push({
-          day,
-          category: cat,
-          value: cellMap[`${day}|${cat}`] ?? 0,
+    return days.map((day) => ({
+      id: day,
+      data: categories.map((cat) => {
+        const match = weekdayData.find((d) => {
+          const dayName = dayNames[d.day_of_week ?? 0] ?? 'Otro'
+          return dayName === day && (d.root_category ?? 'Otro') === cat
         })
+        return { x: cat, y: match?.total ?? 0 }
+      }),
+    }))
+  }, [weekdayData])
+
+  // --- Hour heatmap from DB view ---
+  const hourHeatmapData = useMemo(() => {
+    if (hourData.length === 0) return []
+
+    const categories = [...new Set(hourData.map((d) => d.root_category ?? 'Otro'))]
+    const hours = [...new Set(hourData.map((d) => d.hour_of_day ?? 0))].sort((a, b) => a - b)
+
+    return hours.map((hour) => ({
+      id: `${String(hour).padStart(2, '0')}:00`,
+      data: categories.map((cat) => {
+        const match = hourData.find(
+          (d) => (d.hour_of_day ?? 0) === hour && (d.root_category ?? 'Otro') === cat,
+        )
+        return { x: cat, y: match?.total ?? 0 }
+      }),
+    }))
+  }, [hourData])
+
+  // --- Recovery stats from DB view (no fabricated data) ---
+  const recoveryStats = useMemo(() => {
+    if (recoveryData.length === 0) {
+      return {
+        totalNoContacto: 0,
+        recoveredCount: 0,
+        recoveredPct: '0',
+        avgAttempts: 0,
+        hasData: false,
       }
     }
 
-    return cells.length > 0 ? cells : PLACEHOLDER_HEATMAP
-  }, [leads])
+    const totalNoContacto = recoveryData.length
+    const recovered = recoveryData.filter((r) => r.was_recovered === true)
+    const recoveredCount = recovered.length
+    const recoveredPct = totalNoContacto > 0
+      ? ((recoveredCount / totalNoContacto) * 100).toFixed(1)
+      : '0'
 
-  // --- No-contact recovery stats (placeholder structure) ---
-  const recoveryStats = useMemo(() => {
-    /*
-     * Real query would use the no_contact_recovery view:
-     * SELECT
-     *   COUNT(*) FILTER (WHERE latest_status = 'no_contacto') AS total_no_contacto,
-     *   COUNT(*) FILTER (WHERE recovered = true) AS recovered,
-     *   AVG(attempts_to_contact) AS avg_attempts
-     * FROM no_contact_recovery
-     */
-    const noContactLeads = leads.filter((l) => l.status === 'cerrado' || l.status === 'no_apto')
-    const total = noContactLeads.length || 85
-    const recovered = Math.round(total * 0.32)
+    // Average total_attempts from the view
+    const totalAttempts = recoveryData.reduce(
+      (sum, r) => sum + (r.total_attempts ?? 0),
+      0,
+    )
+    const avgAttempts = totalNoContacto > 0
+      ? Number((totalAttempts / totalNoContacto).toFixed(1))
+      : 0
 
     return {
-      totalNoContacto: total,
-      recoveredPct: total > 0 ? ((recovered / total) * 100).toFixed(1) : '0',
-      avgAttempts: 2.4,
-      attemptBreakdown: [
-        { attempt: '1er intento', pct: 15 },
-        { attempt: '2do intento', pct: 45 },
-        { attempt: '3er intento', pct: 28 },
-        { attempt: '4to+', pct: 12 },
-      ],
+      totalNoContacto,
+      recoveredCount,
+      recoveredPct,
+      avgAttempts,
+      hasData: true,
     }
-  }, [leads])
+  }, [recoveryData])
 
-  // --- Source quality (use real data if available) ---
+  // --- Attempt breakdown from DB view ---
+  const attemptBreakdown = useMemo(() => {
+    if (recoveryData.length === 0) return []
+
+    const recovered = recoveryData.filter((r) => r.was_recovered === true)
+    if (recovered.length === 0) return []
+
+    const buckets: Record<string, number> = {
+      '1er intento': 0,
+      '2do intento': 0,
+      '3er intento': 0,
+      '4to+': 0,
+    }
+
+    for (const r of recovered) {
+      const attempt = r.recovery_at_attempt ?? 0
+      if (attempt <= 1) buckets['1er intento']++
+      else if (attempt === 2) buckets['2do intento']++
+      else if (attempt === 3) buckets['3er intento']++
+      else buckets['4to+']++
+    }
+
+    const total = recovered.length
+    return Object.entries(buckets)
+      .map(([attempt, count]) => ({
+        attempt,
+        pct: total > 0 ? Math.round((count / total) * 100) : 0,
+      }))
+      .filter((b) => b.pct > 0)
+  }, [recoveryData])
+
+  // --- Source quality (from real data) ---
   const sourceQuality: SourceQuality[] = useMemo(() => {
-    if (leads.length === 0) return PLACEHOLDER_SOURCES
+    if (leads.length === 0) return []
 
     const bySource: Record<string, { total: number; apto: number; venta: number }> = {}
     for (const lead of leads) {
@@ -640,7 +521,7 @@ export default function CalidadPage() {
       if (lead.status === 'venta') bySource[src].venta++
     }
 
-    const result = Object.entries(bySource)
+    return Object.entries(bySource)
       .map(([source, data]) => ({
         source,
         totalLeads: data.total,
@@ -648,26 +529,76 @@ export default function CalidadPage() {
         pctVenta: data.total > 0 ? Math.round((data.venta / data.total) * 100) : 0,
       }))
       .sort((a, b) => b.totalLeads - a.totalLeads)
-
-    return result.length > 0 ? result : PLACEHOLDER_SOURCES
   }, [leads])
 
-  // --- SLA: average time from upload to first gestion ---
+  // --- SLA: compute from contact attempts view ---
   const avgSlaHours = useMemo(() => {
-    /*
-     * Real query:
-     * SELECT AVG(
-     *   EXTRACT(EPOCH FROM (g.created_at - l.uploaded_at)) / 3600
-     * ) AS avg_hours
-     * FROM leads l
-     * JOIN LATERAL (
-     *   SELECT created_at FROM gestiones
-     *   WHERE lead_id = l.id ORDER BY created_at LIMIT 1
-     * ) g ON true
-     */
-    // Placeholder since we don't have uploaded_at in client data
-    return 4.2
-  }, [])
+    if (attemptsData.length === 0) return null
+    // Use the first_attempt_at field from the view
+    const withFirstAttempt = attemptsData.filter(
+      (a) => a.first_attempt_at != null,
+    )
+    if (withFirstAttempt.length === 0) return null
+
+    // Average days between attempts as proxy for SLA
+    const totalAvg = withFirstAttempt.reduce(
+      (sum, a) => sum + (a.avg_days_between_attempts ?? 0),
+      0,
+    )
+    const avgDays = totalAvg / withFirstAttempt.length
+    return Number((avgDays * 24).toFixed(1))
+  }, [attemptsData])
+
+  // --- Weekly trend from real gestion data ---
+  const weeklyTrendData = useMemo(() => {
+    if (gestiones.length === 0) return []
+
+    const weekMap: Record<string, Record<string, number>> = {}
+
+    for (const g of gestiones) {
+      if (!g.created_at) continue
+      const d = new Date(g.created_at)
+      // Get ISO week number
+      const startOfYear = new Date(d.getFullYear(), 0, 1)
+      const weekNum = Math.ceil(
+        ((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7,
+      )
+      const weekKey = `Sem ${weekNum}`
+
+      const tipTree = g.tipificacion_tree as unknown as
+        | { name: string; parent_id: string | null; level: number }
+        | null
+      const category = tipTree?.name ?? 'Sin tipificacion'
+
+      if (!weekMap[weekKey]) weekMap[weekKey] = {}
+      weekMap[weekKey][category] = (weekMap[weekKey][category] || 0) + 1
+    }
+
+    // Get top 4 categories
+    const allCategories: Record<string, number> = {}
+    for (const week of Object.values(weekMap)) {
+      for (const [cat, count] of Object.entries(week)) {
+        allCategories[cat] = (allCategories[cat] || 0) + count
+      }
+    }
+    const topCategories = Object.entries(allCategories)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 4)
+      .map(([cat]) => cat)
+
+    const colors = ['#dc2626', '#6b7280', '#d97706', '#059669']
+
+    return topCategories.map((cat, i) => ({
+      id: cat,
+      color: colors[i % colors.length],
+      data: Object.entries(weekMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([week, cats]) => ({
+          x: week,
+          y: cats[cat] ?? 0,
+        })),
+    }))
+  }, [gestiones])
 
   // --- Reset filters ---
   const resetFilters = () => {
@@ -768,13 +699,18 @@ export default function CalidadPage() {
       )}
 
       {/* ============================================================
-          Section 1: Conversion Funnel
+          Section 1: Conversion Funnel (Nivo Funnel)
           ============================================================ */}
       <SectionCard
         title="Embudo de Conversion"
         subtitle="Leads Cargados -> Contactados -> Cotizados -> En Proceso -> Ventas"
       >
-        <ConversionFunnel steps={funnel} />
+        <NivoFunnelChart
+          data={funnelData}
+          height={400}
+          colors={['#3b82f6', '#66cfd0', '#d97706', '#fa5058', '#059669']}
+          emptyMessage="Sin datos suficientes para el embudo"
+        />
       </SectionCard>
 
       {/* ============================================================
@@ -783,67 +719,14 @@ export default function CalidadPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <SectionCard
           title="Distribucion por Tipificacion"
-          subtitle="Drill-down de 3 niveles"
+          subtitle="Drill-down de categorias"
         >
-          {/* Placeholder for Nivo Sunburst — requires real hierarchical data */}
-          <div className="flex items-center justify-center h-64 rounded-lg bg-surface-container-low border border-dashed border-outline-variant/30">
-            <div className="text-center">
-              <div className="w-32 h-32 mx-auto mb-3 rounded-full bg-surface-container flex items-center justify-center">
-                <svg
-                  viewBox="0 0 100 100"
-                  className="w-24 h-24"
-                  fill="none"
-                >
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="45"
-                    stroke="#3b82f6"
-                    strokeWidth="4"
-                    opacity="0.3"
-                  />
-                  <path
-                    d="M50 5 A45 45 0 0 1 95 50"
-                    stroke="#3b82f6"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M95 50 A45 45 0 0 1 50 95"
-                    stroke="#059669"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M50 95 A45 45 0 0 1 5 50"
-                    stroke="#d97706"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M5 50 A45 45 0 0 1 50 5"
-                    stroke="#dc2626"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="25"
-                    stroke="#7c3aed"
-                    strokeWidth="6"
-                    opacity="0.5"
-                  />
-                </svg>
-              </div>
-              <p className="text-xs text-on-surface-variant">
-                Sunburst chart — requiere @nivo/sunburst con datos jerarquicos
-              </p>
-              <p className="text-[0.6rem] text-on-surface-variant/60 mt-1">
-                Se implementara en Phase 10 con datos reales del tipificacion_tree
-              </p>
-            </div>
-          </div>
+          <NivoSunburstChart
+            data={sunburstData}
+            height={400}
+            colors={{ scheme: 'paired' }}
+            emptyMessage="Sin datos de tipificacion disponibles"
+          />
         </SectionCard>
 
         <SectionCard
@@ -855,82 +738,105 @@ export default function CalidadPage() {
       </div>
 
       {/* ============================================================
-          Section 3: Heatmap by Day of Week
+          Section 3: Heatmaps — Day of Week + Hour of Day (Nivo HeatMap)
           ============================================================ */}
-      <SectionCard
-        title="Mapa de Calor por Dia de la Semana"
-        subtitle="Intensidad de resultados por dia (Lun-Dom) vs tipificacion"
-      >
-        <HeatmapTable cells={heatmapCells} />
-      </SectionCard>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SectionCard
+          title="Mapa de Calor por Dia de la Semana"
+          subtitle="Resultados por dia (Lun-Dom) vs categoria"
+        >
+          <NivoHeatMapChart
+            data={weekdayHeatmapData}
+            height={300}
+            margin={{ top: 30, right: 30, bottom: 30, left: 60 }}
+            emptyMessage="Sin datos de resultados por dia"
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="Mapa de Calor por Hora del Dia"
+          subtitle="Resultados por hora vs categoria"
+        >
+          <NivoHeatMapChart
+            data={hourHeatmapData}
+            height={300}
+            margin={{ top: 30, right: 30, bottom: 30, left: 60 }}
+            emptyMessage="Sin datos de resultados por hora"
+          />
+        </SectionCard>
+      </div>
 
       {/* ============================================================
           Section 4: Two-column — Recovery + Quality by Source
           ============================================================ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Recovery stats */}
+        {/* Recovery stats — from DB view */}
         <SectionCard
           title="Recuperacion de No Contactos"
           subtitle="Analisis de reintentos y recuperacion"
         >
-          <div className="space-y-5">
-            {/* Summary KPIs */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center">
-                <p className="text-display-md text-on-surface" style={{ fontSize: '1.75rem' }}>
-                  {recoveryStats.totalNoContacto}
-                </p>
-                <p className="text-label-sm text-on-surface-variant mt-1">
-                  Total No Contacto
-                </p>
+          {recoveryStats.hasData ? (
+            <div className="space-y-5">
+              {/* Summary KPIs */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center">
+                  <p className="text-display-md text-on-surface" style={{ fontSize: '1.75rem' }}>
+                    {recoveryStats.totalNoContacto}
+                  </p>
+                  <p className="text-label-sm text-on-surface-variant mt-1">
+                    Total No Contacto
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-display-md text-emerald-600" style={{ fontSize: '1.75rem' }}>
+                    {recoveryStats.recoveredPct}%
+                  </p>
+                  <p className="text-label-sm text-on-surface-variant mt-1">
+                    Recuperados
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-display-md text-on-surface" style={{ fontSize: '1.75rem' }}>
+                    {recoveryStats.avgAttempts}
+                  </p>
+                  <p className="text-label-sm text-on-surface-variant mt-1">
+                    Prom. Intentos
+                  </p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-display-md text-emerald-600" style={{ fontSize: '1.75rem' }}>
-                  {recoveryStats.recoveredPct}%
-                </p>
-                <p className="text-label-sm text-on-surface-variant mt-1">
-                  Recuperados
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-display-md text-on-surface" style={{ fontSize: '1.75rem' }}>
-                  {recoveryStats.avgAttempts}
-                </p>
-                <p className="text-label-sm text-on-surface-variant mt-1">
-                  Prom. Intentos
-                </p>
-              </div>
-            </div>
 
-            {/* At which attempt they were recovered */}
-            <div>
-              <p className="text-xs text-on-surface-variant mb-3 font-medium">
-                En que intento se recuperaron:
-              </p>
-              <div className="space-y-2">
-                {recoveryStats.attemptBreakdown.map((item) => (
-                  <div key={item.attempt} className="flex items-center gap-3">
-                    <span className="w-24 text-xs text-on-surface-variant shrink-0">
-                      {item.attempt}
-                    </span>
-                    <div className="flex-1 h-5 bg-surface-container rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-brand-primary/70 transition-all duration-500"
-                        style={{ width: `${item.pct}%` }}
-                      />
-                    </div>
-                    <span className="text-xs tabular-nums text-on-surface-variant w-8 text-right">
-                      {item.pct}%
-                    </span>
+              {/* At which attempt they were recovered */}
+              {attemptBreakdown.length > 0 && (
+                <div>
+                  <p className="text-xs text-on-surface-variant mb-3 font-medium">
+                    En que intento se recuperaron:
+                  </p>
+                  <div className="space-y-2">
+                    {attemptBreakdown.map((item) => (
+                      <div key={item.attempt} className="flex items-center gap-3">
+                        <span className="w-24 text-xs text-on-surface-variant shrink-0">
+                          {item.attempt}
+                        </span>
+                        <div className="flex-1 h-5 bg-surface-container rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-brand-primary/70 transition-all duration-500"
+                            style={{ width: `${item.pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs tabular-nums text-on-surface-variant w-8 text-right">
+                          {item.pct}%
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
-
-            <p className="text-[0.65rem] text-on-surface-variant italic">
-              Placeholder — Pie chart de intentos se implementara con @nivo/pie
-            </p>
-          </div>
+          ) : (
+            <div className="flex items-center justify-center h-48 text-on-surface-variant text-sm">
+              Sin datos suficientes
+            </div>
+          )}
         </SectionCard>
 
         {/* Quality by source */}
@@ -943,52 +849,67 @@ export default function CalidadPage() {
       </div>
 
       {/* ============================================================
-          Section 5: Weekly Trend
+          Section 5: Weekly Trend (Nivo Line)
           ============================================================ */}
       <SectionCard
         title="Tendencia Semanal"
-        subtitle="Evolucion porcentual de resultados por semana"
+        subtitle="Evolucion de resultados por semana y categoria"
       >
-        <WeeklyTrendChart data={PLACEHOLDER_WEEKLY_TREND} />
+        <NivoLineChart
+          data={weeklyTrendData}
+          height={350}
+          enableArea={false}
+          colors={['#dc2626', '#6b7280', '#d97706', '#059669']}
+          margin={{ top: 10, right: 30, bottom: 40, left: 50 }}
+          emptyMessage="Sin datos suficientes para tendencia semanal"
+        />
       </SectionCard>
 
       {/* ============================================================
-          Section 6: SLA — Response Time
+          Section 6: SLA — Response Time (computed from DB)
           ============================================================ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <KpiCard
-          label="Tiempo Promedio: Creacion -> Primera Gestion"
-          value={avgSlaHours}
-          format={(n) => `${n.toFixed(1)} hrs`}
+          label="Tiempo Promedio entre Intentos"
+          value={avgSlaHours ?? 0}
+          format={(n) => n > 0 ? `${n.toFixed(1)} hrs` : 'Sin datos'}
           accent="#3b82f6"
-          subtitle="SLA = primera_gestion - uploaded_at"
+          subtitle={avgSlaHours !== null ? 'promedio entre gestiones' : 'sin datos suficientes'}
           className="md:col-span-1"
         />
         <SectionCard
-          title="SLA de Respuesta"
-          subtitle="Tiempo desde carga de lead hasta primera gestion"
+          title="Metricas de Contacto"
+          subtitle="Resumen de intentos de contacto desde la vista de BD"
         >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-body-md text-on-surface">Dentro de SLA (&lt; 4h)</span>
-              <span className="text-xs tabular-nums font-semibold text-emerald-600">68%</span>
+          {attemptsData.length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-body-md text-on-surface">Leads con intentos registrados</span>
+                <span className="text-xs tabular-nums font-semibold text-on-surface">
+                  {attemptsData.length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-body-md text-on-surface">Promedio de intentos por lead</span>
+                <span className="text-xs tabular-nums font-semibold text-on-surface">
+                  {(
+                    attemptsData.reduce((sum, a) => sum + (a.total_attempts ?? 0), 0) /
+                    attemptsData.length
+                  ).toFixed(1)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-body-md text-on-surface">Leads con reintento programado</span>
+                <span className="text-xs tabular-nums font-semibold text-on-surface">
+                  {attemptsData.filter((a) => a.next_scheduled_retry !== null).length}
+                </span>
+              </div>
             </div>
-            <div className="w-full h-3 bg-surface-container rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: '68%' }} />
+          ) : (
+            <div className="flex items-center justify-center h-32 text-on-surface-variant text-sm">
+              Sin datos suficientes
             </div>
-
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-body-md text-on-surface">Fuera de SLA (&gt; 4h)</span>
-              <span className="text-xs tabular-nums font-semibold text-red-600">32%</span>
-            </div>
-            <div className="w-full h-3 bg-surface-container rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-red-500" style={{ width: '32%' }} />
-            </div>
-
-            <p className="text-[0.65rem] text-on-surface-variant italic mt-2">
-              Placeholder — Datos reales requieren JOIN leads.uploaded_at con primera gestion
-            </p>
-          </div>
+          )}
         </SectionCard>
       </div>
     </div>

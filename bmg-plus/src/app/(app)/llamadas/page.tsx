@@ -9,12 +9,6 @@ import { PageHeader } from '@/components/shared/page-header'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useRole } from '@/hooks/use-role'
 import { formatPhone, formatDateTime, formatTime } from '@/lib/utils/format'
@@ -59,6 +53,9 @@ export default function LlamadasPage() {
 
       {/* KPI row */}
       <CallKpiRow />
+
+      {/* Queued / Ringing calls */}
+      <QueuedCallsSection />
 
       {/* Active calls */}
       <ActiveCallsSection />
@@ -188,6 +185,129 @@ function CallKpiRow() {
 }
 
 // ---------------------------------------------------------------------------
+// Queued / Ringing Calls Section
+// ---------------------------------------------------------------------------
+
+function QueuedCallsSection() {
+  const supabase = createClient()
+  const [queuedCalls, setQueuedCalls] = useState<CallRow[]>([])
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['queued-calls'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('calls')
+        .select(
+          'id, agent_id, phone_number, direction, status, duration_seconds, started_at, ended_at, metadata, recording_url, profiles!calls_agent_id_fkey(full_name)'
+        )
+        .eq('status', 'ringing')
+        .order('started_at', { ascending: true })
+
+      if (error) throw error
+      return (data || []) as unknown as CallRow[]
+    },
+    refetchInterval: 5000,
+  })
+
+  useEffect(() => {
+    if (data) setQueuedCalls(data)
+  }, [data])
+
+  // Realtime updates for ringing calls
+  const handleRealtimeQueued = useCallback(
+    (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
+      const row = payload.new as unknown as CallRow | undefined
+      const oldRow = payload.old as unknown as CallRow | undefined
+
+      if (payload.eventType === 'INSERT' && row?.status === 'ringing') {
+        setQueuedCalls((prev) => [...prev, row])
+      } else if (payload.eventType === 'UPDATE') {
+        if (row?.status !== 'ringing') {
+          setQueuedCalls((prev) => prev.filter((c) => c.id !== row?.id))
+        } else {
+          setQueuedCalls((prev) =>
+            prev.map((c) => (c.id === row?.id ? { ...c, ...row } : c))
+          )
+        }
+      } else if (payload.eventType === 'DELETE' && oldRow) {
+        setQueuedCalls((prev) => prev.filter((c) => c.id !== oldRow.id))
+      }
+    },
+    []
+  )
+
+  useRealtime({
+    table: 'calls',
+    event: '*',
+    onData: handleRealtimeQueued as Parameters<typeof useRealtime>[0]['onData'],
+  })
+
+  if (!isLoading && queuedCalls.length === 0) return null
+
+  return (
+    <SectionCard title="Cola de Espera" count={queuedCalls.length}>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <AnimatePresence mode="popLayout">
+            {queuedCalls.map((call, i) => {
+              const profileData = call.profiles as unknown as { full_name: string } | null
+              const agentName = profileData?.full_name || 'Sin asignar'
+              const phone = call.phone_number ? formatPhone(call.phone_number) : 'Sin numero'
+
+              return (
+                <motion.div
+                  key={call.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="relative bg-surface-container-lowest rounded-xl shadow-ambient overflow-hidden border-l-3 border-amber-400"
+                >
+                  <div className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-body-md font-semibold text-on-surface truncate">
+                          {agentName}
+                        </p>
+                        <p className="text-[0.75rem] text-on-surface-variant tabular-nums mt-0.5">
+                          {phone}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                        </span>
+                        <span className="text-[0.7rem] font-semibold text-amber-600 dark:text-amber-400">
+                          Timbrando
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[0.7rem] text-on-surface-variant">
+                      <span>{call.direction === 'inbound' ? 'Entrante' : 'Saliente'}</span>
+                      <span className="tabular-nums">
+                        {call.started_at ? formatTime(call.started_at) : ''}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+      )}
+    </SectionCard>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Active Calls Section
 // ---------------------------------------------------------------------------
 
@@ -293,6 +413,7 @@ function ActiveCallsSection() {
 // ---------------------------------------------------------------------------
 
 function ActiveCallCard({ call, index }: { call: CallRow; index: number }) {
+  const { canSupervise } = useRole()
   const profileData = call.profiles as unknown as { full_name: string } | null
   const agentName = profileData?.full_name || 'Agente desconocido'
   const phone = call.phone_number ? formatPhone(call.phone_number) : 'Sin numero'
@@ -303,6 +424,53 @@ function ActiveCallCard({ call, index }: { call: CallRow; index: number }) {
   const campaignColor = campaignSlug
     ? CAMPAIGN_COLORS[campaignSlug] || '#6b7280'
     : '#6b7280'
+
+  const [spyLoading, setSpyLoading] = useState(false)
+  const [whisperLoading, setWhisperLoading] = useState(false)
+
+  const handleSpy = useCallback(async () => {
+    setSpyLoading(true)
+    try {
+      const res = await fetch('/api/vitxi/spy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          call_id: call.id,
+          extension: 'supervisor',
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        console.error('Spy error:', err)
+      }
+    } catch (err) {
+      console.error('Spy request failed:', err)
+    } finally {
+      setSpyLoading(false)
+    }
+  }, [call.id])
+
+  const handleWhisper = useCallback(async () => {
+    setWhisperLoading(true)
+    try {
+      const res = await fetch('/api/vitxi/whisper', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          call_id: call.id,
+          extension: 'supervisor',
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        console.error('Whisper error:', err)
+      }
+    } catch (err) {
+      console.error('Whisper request failed:', err)
+    } finally {
+      setWhisperLoading(false)
+    }
+  }, [call.id])
 
   return (
     <motion.div
@@ -381,74 +549,56 @@ function ActiveCallCard({ call, index }: { call: CallRow; index: number }) {
           </span>
         )}
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-2 pt-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled
-                    className="flex-1 text-[0.7rem]"
-                  />
-                }
+        {/* Action buttons — connected to Vitxi proxy routes */}
+        {canSupervise && (
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={spyLoading}
+              onClick={handleSpy}
+              className="flex-1 text-[0.7rem]"
+            >
+              <svg
+                className="w-3.5 h-3.5 mr-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
               >
-                <svg
-                  className="w-3.5 h-3.5 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
-                  />
-                </svg>
-                Escuchar
-              </TooltipTrigger>
-              <TooltipContent>
-                Conectar API Vitxi en Configuracion
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+                />
+              </svg>
+              {spyLoading ? 'Conectando...' : 'Escuchar'}
+            </Button>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled
-                    className="flex-1 text-[0.7rem]"
-                  />
-                }
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={whisperLoading}
+              onClick={handleWhisper}
+              className="flex-1 text-[0.7rem]"
+            >
+              <svg
+                className="w-3.5 h-3.5 mr-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
               >
-                <svg
-                  className="w-3.5 h-3.5 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
-                  />
-                </svg>
-                Susurrar
-              </TooltipTrigger>
-              <TooltipContent>
-                Conectar API Vitxi en Configuracion
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
+                />
+              </svg>
+              {whisperLoading ? 'Conectando...' : 'Susurrar'}
+            </Button>
+          </div>
+        )}
       </div>
     </motion.div>
   )

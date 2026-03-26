@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
 import { KpiCard } from '@/components/charts/kpi-card'
+import { NivoBarChart } from '@/components/charts/nivo-bar-chart'
+import { NivoLineChart } from '@/components/charts/nivo-line-chart'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatusDot } from '@/components/shared/status-badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -50,7 +52,13 @@ export default function DashboardPage() {
         <CampaignPerformance />
       </div>
 
-      {/* Section 2: Activity feed + Agent grid */}
+      {/* Section 2: Agent Ranking + Weekly Trend */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <AgentRanking />
+        <WeeklyTrend />
+      </div>
+
+      {/* Section 3: Activity feed + Agent grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <RecentActivity agentId={agentFilter} />
         <ActiveAgents />
@@ -515,6 +523,146 @@ function ActiveAgents() {
           </div>
         )}
       </div>
+    </DashboardCard>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Agent Ranking (horizontal bar chart)
+// ---------------------------------------------------------------------------
+
+function AgentRanking() {
+  const supabase = createClient()
+  const activeCampaign = useCampaignStore((s) => s.activeCampaignId)
+
+  const { data: rankingData, isLoading } = useQuery({
+    queryKey: ['agent-ranking', activeCampaign],
+    queryFn: async () => {
+      let query = supabase
+        .from('gestiones')
+        .select('agent_id, profiles!gestiones_agent_id_fkey(full_name)')
+
+      if (activeCampaign) {
+        query = query.eq('campaign_id', activeCampaign)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+
+      // Count gestiones per agent
+      const counts: Record<string, { agente: string; gestiones: number }> = {}
+      for (const g of (data ?? [])) {
+        const profileData = g.profiles as unknown as { full_name: string } | null
+        const name = profileData?.full_name ?? 'Sin agente'
+        const id = g.agent_id
+        if (!counts[id]) counts[id] = { agente: name, gestiones: 0 }
+        counts[id].gestiones++
+      }
+
+      return Object.values(counts)
+        .sort((a, b) => b.gestiones - a.gestiones)
+        .slice(0, 10)
+    },
+  })
+
+  return (
+    <DashboardCard title="Ranking de Agentes" isLoading={isLoading}>
+      <NivoBarChart
+        data={rankingData ?? []}
+        keys={['gestiones']}
+        indexBy="agente"
+        layout="horizontal"
+        colors={['#66cfd0']}
+        height={Math.max(250, (rankingData?.length ?? 0) * 35)}
+        margin={{ top: 10, right: 30, bottom: 30, left: 120 }}
+        emptyMessage="Sin datos de gestiones por agente"
+      />
+    </DashboardCard>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Weekly Trend (line chart)
+// ---------------------------------------------------------------------------
+
+function WeeklyTrend() {
+  const supabase = createClient()
+  const activeCampaign = useCampaignStore((s) => s.activeCampaignId)
+
+  const { data: trendData, isLoading } = useQuery({
+    queryKey: ['weekly-trend', activeCampaign],
+    queryFn: async () => {
+      let gestionesQuery = supabase
+        .from('gestiones')
+        .select('created_at')
+        .order('created_at', { ascending: true })
+
+      let salesQuery = supabase
+        .from('sales')
+        .select('created_at')
+        .order('created_at', { ascending: true })
+
+      if (activeCampaign) {
+        gestionesQuery = gestionesQuery.eq('campaign_id', activeCampaign)
+        salesQuery = salesQuery.eq('campaign_id', activeCampaign)
+      }
+
+      const [gestionesRes, salesRes] = await Promise.all([gestionesQuery, salesQuery])
+
+      const gestionesByWeek: Record<string, number> = {}
+      for (const g of (gestionesRes.data ?? [])) {
+        if (!g.created_at) continue
+        const d = new Date(g.created_at)
+        const startOfYear = new Date(d.getFullYear(), 0, 1)
+        const weekNum = Math.ceil(
+          ((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7,
+        )
+        const key = `Sem ${weekNum}`
+        gestionesByWeek[key] = (gestionesByWeek[key] || 0) + 1
+      }
+
+      const salesByWeek: Record<string, number> = {}
+      for (const s of (salesRes.data ?? [])) {
+        if (!s.created_at) continue
+        const d = new Date(s.created_at)
+        const startOfYear = new Date(d.getFullYear(), 0, 1)
+        const weekNum = Math.ceil(
+          ((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7,
+        )
+        const key = `Sem ${weekNum}`
+        salesByWeek[key] = (salesByWeek[key] || 0) + 1
+      }
+
+      const allWeeks = [...new Set([...Object.keys(gestionesByWeek), ...Object.keys(salesByWeek)])]
+        .sort((a, b) => {
+          const numA = parseInt(a.replace('Sem ', ''), 10)
+          const numB = parseInt(b.replace('Sem ', ''), 10)
+          return numA - numB
+        })
+
+      return [
+        {
+          id: 'Gestiones',
+          data: allWeeks.map((w) => ({ x: w, y: gestionesByWeek[w] ?? 0 })),
+        },
+        {
+          id: 'Ventas',
+          data: allWeeks.map((w) => ({ x: w, y: salesByWeek[w] ?? 0 })),
+        },
+      ]
+    },
+  })
+
+  return (
+    <DashboardCard title="Tendencia Semanal" isLoading={isLoading}>
+      <NivoLineChart
+        data={trendData ?? []}
+        height={300}
+        enableArea={false}
+        colors={['#3b82f6', '#059669']}
+        margin={{ top: 10, right: 30, bottom: 40, left: 50 }}
+        emptyMessage="Sin datos de tendencia semanal"
+      />
     </DashboardCard>
   )
 }

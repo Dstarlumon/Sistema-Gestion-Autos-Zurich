@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader } from '@/components/shared/page-header'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRole } from '@/hooks/use-role'
@@ -220,9 +221,11 @@ function TreeNodeItem({ node, depth }: { node: TreeNode; depth: number }) {
   const [editName, setEditName] = useState(node.name)
   const [addingChild, setAddingChild] = useState(false)
   const [childName, setChildName] = useState('')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const hasChildren = node.children.length > 0
   const canAddChild = node.level < 3 // max 3 levels
+  const canDelete = !hasChildren // can only delete leaf nodes
 
   // Level styling
   const levelStyles = {
@@ -290,6 +293,22 @@ function TreeNodeItem({ node, depth }: { node: TreeNode; depth: number }) {
       setChildName('')
       setAddingChild(false)
       setExpanded(true)
+    },
+  })
+
+  // Delete mutation (soft delete: set is_active=false)
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('tipificacion_tree')
+        .update({ is_active: false })
+        .eq('id', node.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-tipificaciones'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-counts'] })
+      setDeleteDialogOpen(false)
     },
   })
 
@@ -403,9 +422,31 @@ function TreeNodeItem({ node, depth }: { node: TreeNode; depth: number }) {
                 + Hijo
               </button>
             )}
+
+            {/* Delete (only for leaf nodes) */}
+            {canDelete && (
+              <button
+                onClick={() => setDeleteDialogOpen(true)}
+                className="px-2 py-1 text-xs text-red-500 hover:bg-red-500/10 rounded transition-colors"
+              >
+                Eliminar
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={() => deleteMutation.mutate()}
+        title="Eliminar tipificacion"
+        description={`Se desactivara "${node.name}". Los registros existentes no se veran afectados.`}
+        confirmText="Eliminar"
+        variant="danger"
+        isLoading={deleteMutation.isPending}
+      />
 
       {/* Children */}
       <AnimatePresence>

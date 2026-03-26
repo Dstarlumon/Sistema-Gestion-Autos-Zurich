@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Menu,
   Search,
@@ -10,15 +10,21 @@ import {
   ChevronRight,
   User,
   LogOut,
+  Check,
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useUIStore } from '@/stores/ui-store'
 import { useCampaignStore } from '@/stores/campaign-store'
+import { useRealtimeStore } from '@/stores/realtime-store'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useIsMobile } from '@/hooks/use-media-query'
 import { createClient } from '@/lib/supabase/client'
-import { getInitials } from '@/lib/utils/format'
+import { getInitials, formatTime } from '@/lib/utils/format'
 import { DarkModeToggle } from '@/components/shared/dark-mode-toggle'
+import { cn } from '@/lib/utils'
+import type { Notification } from '@/stores/realtime-store'
 
 interface Campaign {
   id: string
@@ -69,11 +75,23 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
   const { user, signOut } = useAuth()
   const pathname = usePathname()
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const setMobileDrawerOpen = useUIStore((s) => s.setMobileDrawerOpen)
   const { activeCampaignId, setActiveCampaign } = useCampaignStore()
+  const isMobile = useIsMobile()
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [clock, setClock] = useState('')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [notifMenuOpen, setNotifMenuOpen] = useState(false)
+  const notifMenuRef = useRef<HTMLDivElement>(null)
+
+  // Realtime store for notifications
+  const notificationCount = useRealtimeStore((s) => s.notificationCount)
+  const notifications = useRealtimeStore((s) => s.notifications)
+  const setNotificationCount = useRealtimeStore((s) => s.setNotificationCount)
+  const setNotifications = useRealtimeStore((s) => s.setNotifications)
+  const addNotification = useRealtimeStore((s) => s.addNotification)
+  const markNotificationRead = useRealtimeStore((s) => s.markNotificationRead)
 
   // Fetch campaigns on mount
   useEffect(() => {
@@ -88,6 +106,61 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
     }
     fetchCampaigns()
   }, [])
+
+  // Fetch unread notifications on mount
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    const fetchNotifications = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false)
+      setNotificationCount(count || 0)
+
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      if (data) {
+        setNotifications(data as Notification[])
+      }
+    }
+    fetchNotifications()
+  }, [user, setNotificationCount, setNotifications])
+
+  // Subscribe to realtime INSERT on notifications for current user
+  useRealtime({
+    table: 'notifications',
+    event: 'INSERT',
+    filter: user ? `user_id=eq.${user.id}` : undefined,
+    enabled: !!user,
+    onData: useCallback(
+      (payload) => {
+        const newNotif = payload.new as unknown as Notification | undefined
+        if (newNotif) {
+          addNotification(newNotif)
+        }
+      },
+      [addNotification],
+    ),
+  })
+
+  // Mark notification as read handler
+  const handleMarkRead = useCallback(
+    async (notifId: string) => {
+      markNotificationRead(notifId)
+      const supabase = createClient()
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notifId)
+    },
+    [markNotificationRead],
+  )
 
   // Clock: Colombia time, updates every minute
   useEffect(() => {
@@ -114,15 +187,35 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
     return () => document.removeEventListener('click', handleClick)
   }, [userMenuOpen])
 
+  // Close notification menu on outside click
+  useEffect(() => {
+    if (!notifMenuOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
+        setNotifMenuOpen(false)
+      }
+    }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [notifMenuOpen])
+
   const roleLabel = user?.role
     ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
     : ''
 
+  const handleMenuClick = () => {
+    if (isMobile) {
+      setMobileDrawerOpen(true)
+    } else {
+      toggleSidebar()
+    }
+  }
+
   return (
-    <header className="sticky top-0 z-30 h-14 bg-white dark:bg-card shadow-ambient flex items-center px-5 gap-4">
+    <header className="sticky top-0 z-30 h-14 bg-white dark:bg-card shadow-ambient flex items-center px-3 sm:px-5 gap-2 sm:gap-4">
       {/* Left: toggle + breadcrumb */}
       <button
-        onClick={toggleSidebar}
+        onClick={handleMenuClick}
         className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
         aria-label="Toggle sidebar"
       >
@@ -144,28 +237,38 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
         ))}
       </nav>
 
-      {/* Search — opens command palette */}
-      <div className="flex-1 max-w-md mx-4">
+      {/* Search — full bar on desktop, icon button on mobile */}
+      <div className="flex-1 max-w-md mx-2 sm:mx-4">
+        {/* Desktop search */}
         <button
           type="button"
           onClick={onOpenCommandPalette}
-          className="w-full h-8 flex items-center gap-2 pl-3 pr-3 rounded-lg bg-slate-50 dark:bg-white/5 text-sm text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left cursor-pointer"
+          className="hidden sm:flex w-full h-8 items-center gap-2 pl-3 pr-3 rounded-lg bg-slate-50 dark:bg-white/5 text-sm text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-left cursor-pointer"
         >
           <Search size={15} className="shrink-0" />
           <span className="flex-1 truncate">Buscar leads, acciones...</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
+          <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
             Ctrl K
           </kbd>
+        </button>
+        {/* Mobile search icon */}
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          className="sm:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          aria-label="Buscar"
+        >
+          <Search size={20} />
         </button>
       </div>
 
       {/* Right side controls */}
-      <div className="flex items-center gap-3 ml-auto">
-        {/* Campaign switcher */}
+      <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+        {/* Campaign switcher — hidden on mobile */}
         <select
           value={activeCampaignId ?? ''}
           onChange={(e) => setActiveCampaign(e.target.value || null)}
-          className="h-8 px-3 rounded-lg bg-slate-50 text-xs text-slate-600 border-0 focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/20 cursor-pointer"
+          className="hidden lg:block h-8 px-3 rounded-lg bg-slate-50 text-xs text-slate-600 border-0 focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/20 cursor-pointer"
         >
           <option value="">Todas las campanias</option>
           {campaigns.map((c) => (
@@ -179,17 +282,86 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
         <DarkModeToggle />
 
         {/* Notifications */}
-        <button
-          className="relative p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-white/10 transition-colors"
-          aria-label="Notificaciones"
-          title="Notificaciones"
-        >
-          <Bell size={18} />
-          {/* Badge - hardcoded 0 for now, hidden when 0 */}
-        </button>
+        <div className="relative" ref={notifMenuRef}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setNotifMenuOpen((prev) => !prev)
+            }}
+            className="relative p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-white/10 transition-colors"
+            aria-label="Notificaciones"
+            title="Notificaciones"
+          >
+            <Bell size={18} />
+            {notificationCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[0.55rem] font-bold leading-none">
+                {notificationCount > 99 ? '99+' : notificationCount}
+              </span>
+            )}
+          </button>
 
-        {/* Clock */}
-        <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-400" title="Hora Colombia">
+          {/* Notification dropdown */}
+          {notifMenuOpen && (
+            <div className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-white dark:bg-card shadow-ambient z-50 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Notificaciones
+                </h3>
+                {notificationCount > 0 && (
+                  <span className="text-[0.65rem] text-slate-400">
+                    {notificationCount} sin leer
+                  </span>
+                )}
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-sm text-slate-400">Sin notificaciones</p>
+                  </div>
+                ) : (
+                  notifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      className={cn(
+                        'flex items-start gap-3 px-4 py-3 border-b border-slate-50 dark:border-slate-800/50 last:border-0 transition-colors',
+                        !notif.is_read
+                          ? 'bg-blue-50/50 dark:bg-blue-950/20'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/5',
+                      )}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
+                          {notif.title}
+                        </p>
+                        <p className="text-[0.7rem] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                          {notif.message}
+                        </p>
+                        <p className="text-[0.6rem] text-slate-400 mt-1 tabular-nums">
+                          {notif.created_at ? formatTime(notif.created_at) : ''}
+                        </p>
+                      </div>
+                      {!notif.is_read && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleMarkRead(notif.id)
+                          }}
+                          className="shrink-0 p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                          title="Marcar como leida"
+                        >
+                          <Check size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Clock — hidden on mobile and tablet */}
+        <div className="hidden xl:flex items-center gap-1.5 text-xs text-slate-400" title="Hora Colombia">
           <Clock size={14} />
           <span className="tabular-nums">{clock}</span>
         </div>

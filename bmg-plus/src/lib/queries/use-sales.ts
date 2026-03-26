@@ -58,7 +58,23 @@ export function useCreateSale() {
       if (error) throw error
       return data
     },
-    onSuccess: () => {
+    onMutate: async (newData) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['sales'] })
+
+      // Snapshot previous value (for the default sales list)
+      const prev = queryClient.getQueryData(['sales'])
+
+      return { prev }
+    },
+    onError: (_err, _newData, context) => {
+      // Rollback on error
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(['sales'], context.prev)
+      }
+    },
+    onSettled: () => {
+      // Always refetch after success or error
       queryClient.invalidateQueries({ queryKey: ['sales'] })
       queryClient.invalidateQueries({ queryKey: ['leads'] })
     },

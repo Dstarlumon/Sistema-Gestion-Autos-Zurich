@@ -2,14 +2,19 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/shared/page-header'
 import { KpiCard } from '@/components/charts/kpi-card'
+import { NivoBarChart } from '@/components/charts/nivo-bar-chart'
+import { NivoLineChart } from '@/components/charts/nivo-line-chart'
+import { NivoPieChart } from '@/components/charts/nivo-pie-chart'
 import { DataTable, type Column } from '@/components/tables/data-table'
 import { TableFilters } from '@/components/tables/table-filters'
 import { useSales } from '@/lib/queries/use-sales'
 import { useCampaigns } from '@/lib/queries/use-campaigns'
 import { useAgents } from '@/lib/queries/use-agents'
 import { useCampaignStore } from '@/stores/campaign-store'
+import { createClient } from '@/lib/supabase/client'
 import { formatCOP, formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +23,7 @@ type SaleRow = Record<string, unknown> & {
   id: string
   lead_id: string
   nombre_cliente: string
+  documento: string | null
   valor_prima: number
   num_poliza: string
   tipo_seguro: string
@@ -36,6 +42,56 @@ const ACCENT = {
   teal: '#0d9488',
   amber: '#d97706',
   purple: '#7c3aed',
+}
+
+// ---------- Hook: fetch ALL sales for charts + KPIs ----------
+function useAllSalesStats(filters: {
+  campaignId?: string
+  agentId?: string
+}) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ['all-sales-stats', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('sales')
+        .select(
+          'id, agent_id, valor_prima, campaign_id, created_at, profiles!sales_agent_id_fkey(full_name), campaigns(name)',
+        )
+
+      if (filters.campaignId) query = query.eq('campaign_id', filters.campaignId)
+      if (filters.agentId) query = query.eq('agent_id', filters.agentId)
+
+      const { data, error } = await query
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+// ---------- Hook: total count for KPIs ----------
+function useSalesCount(filters: {
+  campaignId?: string
+  agentId?: string
+}) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ['sales-count', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('sales')
+        .select('*', { count: 'exact', head: true })
+
+      if (filters.campaignId) query = query.eq('campaign_id', filters.campaignId)
+      if (filters.agentId) query = query.eq('agent_id', filters.agentId)
+
+      const { count, error } = await query
+      if (error) throw error
+      return count ?? 0
+    },
+  })
 }
 
 export default function VentasPage() {
@@ -63,6 +119,16 @@ export default function VentasPage() {
   const { data: campaigns } = useCampaigns()
   const { data: agents } = useAgents(effectiveCampaign)
 
+  // Full dataset for charts and KPIs (not paginated)
+  const { data: allSales } = useAllSalesStats({
+    campaignId: effectiveCampaign,
+    agentId: filterAgent || undefined,
+  })
+  const { data: fullCount } = useSalesCount({
+    campaignId: effectiveCampaign,
+    agentId: filterAgent || undefined,
+  })
+
   const sales = (salesResult?.data ?? []) as SaleRow[]
   const totalCount = salesResult?.count ?? 0
 
@@ -79,35 +145,89 @@ export default function VentasPage() {
     return result
   }, [sales, filterDateFrom, filterDateTo])
 
-  // --- KPI calculations ---
-  const totalVentas = totalCount
-  const primaTotal = filteredSales.reduce(
-    (sum, s) => sum + (Number(s.valor_prima) || 0),
-    0,
-  )
-  const primaPromedio =
-    filteredSales.length > 0 ? primaTotal / filteredSales.length : 0
+  // --- KPI calculations (from full dataset) ---
+  const totalVentas = fullCount ?? totalCount
 
-  // Conversion rate: approximate from total sales vs total in the view
-  const conversionPercent = totalVentas > 0 ? (totalVentas / Math.max(totalVentas * 5, 1)) * 100 : 0
+  const primaTotal = useMemo(() => {
+    if (!allSales || allSales.length === 0) return 0
+    return allSales.reduce((sum, s) => sum + (Number(s.valor_prima) || 0), 0)
+  }, [allSales])
 
-  // Best agent by sale count
+  const primaPromedio = useMemo(() => {
+    if (!allSales || allSales.length === 0) return 0
+    const total = allSales.reduce((sum, s) => sum + (Number(s.valor_prima) || 0), 0)
+    return total / allSales.length
+  }, [allSales])
+
+  // Unique agents who made sales
+  const uniqueAgents = useMemo(() => {
+    if (!allSales) return 0
+    return new Set(allSales.map((s) => s.agent_id)).size
+  }, [allSales])
+
+  // Best agent by sale count (from full dataset)
   const agentSaleCount = useMemo(() => {
     const counts: Record<string, { name: string; count: number }> = {}
-    for (const s of filteredSales) {
-      const name = s.profiles?.full_name ?? 'Sin agente'
+    for (const s of (allSales ?? [])) {
+      const profileData = s.profiles as unknown as { full_name: string } | null
+      const name = profileData?.full_name ?? 'Sin agente'
       const id = s.agent_id ?? 'unknown'
       if (!counts[id]) counts[id] = { name, count: 0 }
       counts[id].count++
     }
     return counts
-  }, [filteredSales])
+  }, [allSales])
 
   const bestAgent = useMemo(() => {
     const entries = Object.values(agentSaleCount)
     if (entries.length === 0) return { name: '--', count: 0 }
     return entries.reduce((best, e) => (e.count > best.count ? e : best))
   }, [agentSaleCount])
+
+  // --- Chart data computations ---
+
+  // Chart 1: Sales by Agent (horizontal bar)
+  const salesByAgent = useMemo(() => {
+    if (!allSales || allSales.length === 0) return []
+    const counts: Record<string, { agente: string; ventas: number }> = {}
+    for (const s of allSales) {
+      const profileData = s.profiles as unknown as { full_name: string } | null
+      const name = profileData?.full_name ?? 'Sin agente'
+      if (!counts[name]) counts[name] = { agente: name, ventas: 0 }
+      counts[name].ventas++
+    }
+    return Object.values(counts)
+      .sort((a, b) => b.ventas - a.ventas)
+      .slice(0, 10)
+  }, [allSales])
+
+  // Chart 2: Monthly Prima (line/area)
+  const monthlyPrimaData = useMemo(() => {
+    if (!allSales || allSales.length === 0) return []
+    const monthMap: Record<string, number> = {}
+    for (const s of allSales) {
+      if (!s.created_at) continue
+      const d = new Date(s.created_at)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      monthMap[key] = (monthMap[key] || 0) + (Number(s.valor_prima) || 0)
+    }
+    const sorted = Object.entries(monthMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+    return sorted.map(([month, total]) => ({ x: month, y: total }))
+  }, [allSales])
+
+  // Chart 3: Sales by Campaign (pie)
+  const salesByCampaign = useMemo(() => {
+    if (!allSales || allSales.length === 0) return []
+    const counts: Record<string, { id: string; label: string; value: number }> = {}
+    for (const s of allSales) {
+      const campaignData = s.campaigns as unknown as { name: string } | null
+      const name = campaignData?.name ?? 'Sin campana'
+      if (!counts[name]) counts[name] = { id: name, label: name, value: 0 }
+      counts[name].value++
+    }
+    return Object.values(counts).sort((a, b) => b.value - a.value)
+  }, [allSales])
 
   // --- Reset filters ---
   const resetFilters = () => {
@@ -136,6 +256,15 @@ export default function VentasPage() {
       render: (row) => (
         <span className="font-medium text-on-surface">
           {row.nombre_cliente || '\u2014'}
+        </span>
+      ),
+    },
+    {
+      key: 'documento',
+      header: 'Documento',
+      render: (row) => (
+        <span className="tabular-nums text-on-surface-variant">
+          {row.documento || '\u2014'}
         </span>
       ),
     },
@@ -250,17 +379,16 @@ export default function VentasPage() {
           delay={0.1}
         />
         <KpiCard
-          label="Conversion %"
-          value={conversionPercent}
-          format={(n) => `${n.toFixed(1)}%`}
+          label="Agentes Activos"
+          value={uniqueAgents}
           accent={ACCENT.amber}
-          subtitle="leads a venta"
+          subtitle="con ventas"
           delay={0.15}
         />
         <KpiCard
           label="Mejor Agente"
           value={bestAgent.count}
-          format={(n) => bestAgent.name}
+          format={() => bestAgent.name}
           accent={ACCENT.purple}
           subtitle={`${bestAgent.count} ventas`}
           delay={0.2}
@@ -372,6 +500,59 @@ export default function VentasPage() {
           pageSize={pageSize}
           totalCount={totalCount}
           onPageChange={setPage}
+        />
+      </div>
+
+      {/* ============================================================
+          Charts Section
+          ============================================================ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Chart 1: Sales by Agent (horizontal bar) */}
+        <div className="bg-surface-container-lowest rounded-xl p-6 shadow-ambient">
+          <h3 className="text-title-md text-on-surface mb-1">Ventas por Agente</h3>
+          <p className="text-xs text-on-surface-variant mb-4">Top 10 agentes por cantidad de ventas</p>
+          <NivoBarChart
+            data={salesByAgent}
+            keys={['ventas']}
+            indexBy="agente"
+            layout="horizontal"
+            colors={['#66cfd0']}
+            height={Math.max(300, salesByAgent.length * 40)}
+            margin={{ top: 10, right: 30, bottom: 40, left: 120 }}
+            emptyMessage="Sin datos de ventas por agente"
+          />
+        </div>
+
+        {/* Chart 3: Sales by Campaign (pie) */}
+        <div className="bg-surface-container-lowest rounded-xl p-6 shadow-ambient">
+          <h3 className="text-title-md text-on-surface mb-1">Ventas por Campana</h3>
+          <p className="text-xs text-on-surface-variant mb-4">Distribucion de ventas por campana</p>
+          <NivoPieChart
+            data={salesByCampaign}
+            height={300}
+            colors={{ scheme: 'paired' }}
+            emptyMessage="Sin datos de ventas por campana"
+          />
+        </div>
+      </div>
+
+      {/* Chart 2: Monthly Prima (line/area) — full width */}
+      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-ambient">
+        <h3 className="text-title-md text-on-surface mb-1">Prima Mensual</h3>
+        <p className="text-xs text-on-surface-variant mb-4">Evolucion mensual de prima acumulada</p>
+        <NivoLineChart
+          data={[
+            {
+              id: 'Prima',
+              data: monthlyPrimaData,
+            },
+          ]}
+          height={300}
+          enableArea={true}
+          areaOpacity={0.15}
+          colors={['#fa5058']}
+          margin={{ top: 10, right: 30, bottom: 40, left: 80 }}
+          emptyMessage="Sin datos de prima mensual"
         />
       </div>
     </div>

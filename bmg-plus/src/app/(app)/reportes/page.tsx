@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
@@ -27,10 +27,52 @@ export default function ReportesPage() {
   const [dateTo, setDateTo] = useState('')
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([])
   const [selectedAgent, setSelectedAgent] = useState('')
+  const [isExporting, setIsExporting] = useState<'csv' | 'excel' | null>(null)
 
   // --- Data sources ---
   const { data: campaigns } = useCampaigns()
   const { data: agents } = useAgents()
+
+  // --- Export handler ---
+  const handleExport = useCallback(
+    async (type: 'csv' | 'excel') => {
+      setIsExporting(type)
+      try {
+        const filters: Record<string, unknown> = {}
+        if (selectedCampaigns.length === 1) filters.campaign_id = selectedCampaigns[0]
+        if (dateFrom) filters.date_from = dateFrom
+        if (dateTo) filters.date_to = dateTo
+
+        const res = await fetch('/api/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, module: 'gestiones', filters }),
+        })
+
+        if (!res.ok) {
+          const errText = await res.text()
+          throw new Error(errText || 'Error al exportar')
+        }
+
+        // Trigger browser download
+        const blob = await res.blob()
+        const ext = type === 'csv' ? 'csv' : 'xlsx'
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `gestiones_export.${ext}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      } catch (err) {
+        console.error('Export error:', err)
+      } finally {
+        setIsExporting(null)
+      }
+    },
+    [selectedCampaigns, dateFrom, dateTo],
+  )
 
   if (!canSupervise) {
     return (
@@ -67,26 +109,26 @@ export default function ReportesPage() {
       >
         <div className="flex items-center gap-2">
           <button
-            disabled
-            title="Proximamente"
+            onClick={() => handleExport('excel')}
+            disabled={isExporting !== null}
             className={cn(
               'px-4 py-2 text-xs font-semibold rounded-lg transition-colors',
-              'bg-surface-container text-on-surface-variant',
+              'bg-surface-container text-on-surface-variant hover:bg-surface-container-high',
               'disabled:opacity-40 disabled:cursor-not-allowed',
             )}
           >
-            Exportar Excel
+            {isExporting === 'excel' ? 'Exportando...' : 'Exportar Excel'}
           </button>
           <button
-            disabled
-            title="Proximamente"
+            onClick={() => handleExport('csv')}
+            disabled={isExporting !== null}
             className={cn(
               'px-4 py-2 text-xs font-semibold rounded-lg transition-colors',
-              'bg-surface-container text-on-surface-variant',
+              'bg-surface-container text-on-surface-variant hover:bg-surface-container-high',
               'disabled:opacity-40 disabled:cursor-not-allowed',
             )}
           >
-            Exportar PDF
+            {isExporting === 'csv' ? 'Exportando...' : 'Exportar CSV'}
           </button>
         </div>
       </PageHeader>

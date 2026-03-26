@@ -17,11 +17,10 @@ function Particles({ count = 2000 }) {
     return pos
   }, [count])
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, pointer }) => {
     if (!mesh.current) return
-    const time = clock.getElapsedTime() * 0.1
-    mesh.current.rotation.y = time * 0.05
-    mesh.current.rotation.x = Math.sin(time * 0.3) * 0.02
+    mesh.current.rotation.y = clock.getElapsedTime() * 0.005 + pointer.x * 0.1
+    mesh.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.3) * 0.02 + pointer.y * 0.05
   })
 
   return (

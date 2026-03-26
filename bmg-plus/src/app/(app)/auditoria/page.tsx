@@ -288,20 +288,54 @@ function AgentScorecard() {
             .select('*', { count: 'exact', head: true })
             .eq('agent_id', agent.id)
 
+          // Average response time: time between lead upload and first gestion
+          const { data: responseTimes } = await supabase
+            .from('gestiones')
+            .select('created_at, leads!gestiones_lead_id_fkey(uploaded_at)')
+            .eq('agent_id', agent.id)
+            .order('created_at', { ascending: true })
+            .limit(100)
+
+          let avgResponseTime: number | null = null
+          if (responseTimes && responseTimes.length > 0) {
+            const deltas: number[] = []
+            // Group by lead, take earliest gestion per lead
+            const seenLeads = new Set<string>()
+            for (const g of responseTimes) {
+              const leadData = g.leads as unknown as { uploaded_at: string | null } | null
+              if (!leadData?.uploaded_at) continue
+              // Use a composite key to deduplicate
+              const gestionCreated = new Date(g.created_at).getTime()
+              const leadUploaded = new Date(leadData.uploaded_at).getTime()
+              if (gestionCreated > leadUploaded) {
+                const deltaMin = (gestionCreated - leadUploaded) / 60_000
+                // Only count reasonable deltas (< 24h)
+                if (deltaMin < 1440) {
+                  deltas.push(deltaMin)
+                }
+              }
+            }
+            if (deltas.length > 0) {
+              avgResponseTime = Math.round(
+                deltas.reduce((a, b) => a + b, 0) / deltas.length,
+              )
+            }
+          }
+
           const gestionesPerDay = gestionesToday || 0
           const conversion =
             (totalGestiones || 0) > 0
               ? ((totalSales || 0) / (totalGestiones || 1)) * 100
               : 0
 
-          // Placeholder response time (average minutes)
-          const avgResponseTime = Math.round(5 + Math.random() * 25)
-
-          // Score: weighted average (placeholder formula)
+          // Score: weighted average
           // 40% conversion, 30% gestiones/day, 30% response time
           const convScore = Math.min(conversion * 5, 100)
           const gestionScore = Math.min(gestionesPerDay * 5, 100)
-          const responseScore = Math.max(100 - avgResponseTime * 2, 0)
+          const responseScore =
+            avgResponseTime != null
+              ? Math.max(100 - avgResponseTime * 2, 0)
+              : 50 // neutral score when no data
           const score = Math.round(
             convScore * 0.4 + gestionScore * 0.3 + responseScore * 0.3,
           )
@@ -311,7 +345,8 @@ function AgentScorecard() {
             name: agent.full_name,
             gestionesPerDay: gestionesPerDay,
             conversion: Number(conversion.toFixed(1)),
-            avgResponseTime: `${avgResponseTime} min`,
+            avgResponseTime:
+              avgResponseTime != null ? `${avgResponseTime} min` : 'N/A',
             score: Math.min(score, 100),
           }
         }),
