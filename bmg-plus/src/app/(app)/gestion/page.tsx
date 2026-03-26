@@ -6,11 +6,11 @@ import { PageHeader } from '@/components/shared/page-header'
 import { TableFilters } from '@/components/tables/table-filters'
 import { DataTable, type Column } from '@/components/tables/data-table'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { useLeads } from '@/lib/queries/use-leads'
+import { useLeads, useLeadContactAttempts } from '@/lib/queries/use-leads'
 import { useCampaigns } from '@/lib/queries/use-campaigns'
 import { useAgents } from '@/lib/queries/use-agents'
 import { useCampaignStore } from '@/stores/campaign-store'
-import { formatDate, formatPhone } from '@/lib/utils/format'
+import { formatDate, formatPhone, formatDateTime } from '@/lib/utils/format'
 import { LEAD_STATUSES } from '@/lib/utils/constants'
 import {
   Select,
@@ -49,8 +49,28 @@ export default function GestionPage() {
     campaignId: effectiveCampaignId,
   })
 
-  const leads = leadsResult?.data ?? []
+  const rawLeads = leadsResult?.data ?? []
   const totalCount = leadsResult?.count ?? 0
+
+  // Fetch contact attempt metrics for the current page of leads
+  const leadIds = useMemo(
+    () => rawLeads.map((l: Record<string, unknown>) => l.id as string),
+    [rawLeads]
+  )
+  const { data: attemptsMap } = useLeadContactAttempts(leadIds)
+
+  // Enrich leads with contact attempt data
+  const leads = useMemo(() => {
+    if (!attemptsMap) return rawLeads
+    return rawLeads.map((lead: Record<string, unknown>) => {
+      const attempt = attemptsMap.get(lead.id as string)
+      return {
+        ...lead,
+        contact_attempts: attempt?.total_attempts ?? 0,
+        retry_scheduled_at: attempt?.next_scheduled_retry ?? null,
+      }
+    })
+  }, [rawLeads, attemptsMap])
 
   // Reset all filters
   const handleReset = useCallback(() => {
@@ -148,6 +168,31 @@ export default function GestionPage() {
           const s = row.status as string | null
           if (!s) return '\u2014'
           return <StatusBadge status={s} />
+        },
+      },
+      {
+        key: 'contact_attempts',
+        header: 'Intentos',
+        render: (row) => {
+          const attempts = row.contact_attempts as number | null
+          const retryAt = row.retry_scheduled_at as string | null
+          const isOverdue = retryAt ? new Date(retryAt) < new Date() : false
+
+          return (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="tabular-nums font-medium text-on-surface">
+                {attempts ?? 0}
+              </span>
+              {isOverdue && (
+                <span
+                  className="text-amber-500"
+                  title={`Reintento vencido: ${retryAt ? formatDateTime(retryAt) : ''}`}
+                >
+                  {'⚠️'}
+                </span>
+              )}
+            </span>
+          )
         },
       },
       {

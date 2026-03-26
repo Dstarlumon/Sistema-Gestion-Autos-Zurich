@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { useGestionesByLead } from '@/lib/queries/use-gestiones'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDateTime, formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import {
   Phone,
   MessageCircle,
@@ -45,26 +46,101 @@ const CANAL_LABELS: Record<string, string> = {
   chatbot: 'Chatbot',
 }
 
-/** Build the tipificacion display name from the joined tipificacion_tree data */
-function buildTipificacionPath(gestion: Record<string, unknown>): string {
-  const tip = gestion.tipificacion_tree as {
-    name: string
-    parent_id: string | null
-    level: number
-  } | null
-  if (!tip) return ''
-  return tip.name
+interface TipificacionNode {
+  id: string
+  name: string
+  parent_id: string | null
+  level: number
 }
 
-/** Get the root category from gestion's tipificacion tree */
-function getRootCategory(gestion: Record<string, unknown>): string {
-  const tip = gestion.tipificacion_tree as {
-    name: string
-    parent_id: string | null
-    level: number
-  } | null
+/** Build the full tipificacion path by traversing parent chain in the lookup map */
+function buildTipificacionPath(
+  gestion: Record<string, unknown>,
+  treeLookup: Map<string, TipificacionNode>
+): string {
+  const tip = gestion.tipificacion_tree as TipificacionNode | null
   if (!tip) return ''
-  return tip.name
+
+  // Walk up the parent chain to build the full path
+  const parts: string[] = []
+  let current: TipificacionNode | undefined = tip.id ? treeLookup.get(tip.id) ?? tip : tip
+  const visited = new Set<string>()
+
+  while (current) {
+    if (visited.has(current.id)) break // safety: prevent infinite loops
+    visited.add(current.id)
+    parts.unshift(current.name)
+    current = current.parent_id ? treeLookup.get(current.parent_id) : undefined
+  }
+
+  return parts.join(' > ')
+}
+
+/** Get the root category from gestion's tipificacion tree by walking up the parent chain */
+function getRootCategory(
+  gestion: Record<string, unknown>,
+  treeLookup: Map<string, TipificacionNode>
+): string {
+  const tip = gestion.tipificacion_tree as TipificacionNode | null
+  if (!tip) return ''
+
+  let current: TipificacionNode | undefined = tip.id ? treeLookup.get(tip.id) ?? tip : tip
+  const visited = new Set<string>()
+
+  while (current?.parent_id) {
+    if (visited.has(current.id)) break
+    visited.add(current.id)
+    const parent = treeLookup.get(current.parent_id)
+    if (!parent) break
+    current = parent
+  }
+
+  return current?.name ?? ''
+}
+
+/** Hook to fetch the full tipificacion_tree for parent chain traversal */
+function useTipificacionLookup(gestiones: Record<string, unknown>[] | undefined) {
+  const [lookup, setLookup] = useState<Map<string, TipificacionNode>>(new Map())
+
+  useEffect(() => {
+    if (!gestiones || gestiones.length === 0) {
+      setLookup(new Map())
+      return
+    }
+
+    // Collect all tipificacion IDs from gestiones (including parents we need to fetch)
+    const tipIds = gestiones
+      .map((g) => {
+        const tip = g.tipificacion_tree as TipificacionNode | null
+        return tip?.id
+      })
+      .filter(Boolean) as string[]
+
+    if (tipIds.length === 0) {
+      setLookup(new Map())
+      return
+    }
+
+    const supabase = createClient()
+
+    // Fetch all tipificacion_tree nodes so we can resolve parent chains
+    const fetchTree = async () => {
+      const { data } = await supabase
+        .from('tipificacion_tree')
+        .select('id, name, parent_id, level')
+      if (data) {
+        const map = new Map<string, TipificacionNode>()
+        for (const node of data) {
+          map.set(node.id, node)
+        }
+        setLookup(map)
+      }
+    }
+
+    fetchTree()
+  }, [gestiones])
+
+  return lookup
 }
 
 export function Timeline({
@@ -74,19 +150,20 @@ export function Timeline({
   uploadedByName,
 }: TimelineProps) {
   const { data: gestiones, isLoading } = useGestionesByLead(leadId)
+  const treeLookup = useTipificacionLookup(gestiones)
 
   // Determine dot color for each gestion by matching root category
   const gestionItems = useMemo(() => {
     if (!gestiones) return []
     return gestiones.map((g: Record<string, unknown>) => {
-      const rootCat = getRootCategory(g)
+      const rootCat = getRootCategory(g, treeLookup)
       const dotColor =
         Object.entries(CATEGORY_DOT_COLORS).find(([key]) =>
           rootCat.toUpperCase().includes(key)
         )?.[1] ?? 'bg-slate-400'
       return { ...g, dotColor, rootCategory: rootCat }
     })
-  }, [gestiones])
+  }, [gestiones, treeLookup])
 
   if (isLoading) {
     return (
@@ -136,7 +213,7 @@ export function Timeline({
           const createdAt = gestion.created_at as string
           const retryScheduledAt =
             gestion.retry_scheduled_at as string | null
-          const tipPath = buildTipificacionPath(gestion)
+          const tipPath = buildTipificacionPath(gestion, treeLookup)
 
           return (
             <motion.div

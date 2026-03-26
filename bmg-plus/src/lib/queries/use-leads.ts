@@ -45,6 +45,37 @@ export function useLeads(params?: {
   })
 }
 
+/** Fetch contact attempt metrics from the lead_contact_attempts view */
+export function useLeadContactAttempts(leadIds: string[]) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ['lead-contact-attempts', leadIds],
+    queryFn: async () => {
+      if (leadIds.length === 0) return new Map<string, { total_attempts: number; next_scheduled_retry: string | null }>()
+
+      const { data, error } = await supabase
+        .from('lead_contact_attempts')
+        .select('lead_id, total_attempts, next_scheduled_retry')
+        .in('lead_id', leadIds)
+
+      if (error) throw error
+
+      const map = new Map<string, { total_attempts: number; next_scheduled_retry: string | null }>()
+      for (const row of data ?? []) {
+        if (row.lead_id) {
+          map.set(row.lead_id, {
+            total_attempts: row.total_attempts ?? 0,
+            next_scheduled_retry: row.next_scheduled_retry ?? null,
+          })
+        }
+      }
+      return map
+    },
+    enabled: leadIds.length > 0,
+  })
+}
+
 export function useLeadById(id: string) {
   const supabase = createClient()
 

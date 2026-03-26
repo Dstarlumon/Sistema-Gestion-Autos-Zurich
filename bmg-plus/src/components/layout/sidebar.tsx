@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Users,
   DollarSign,
+  MessageCircle,
   Star,
   Search,
   Phone,
@@ -51,6 +52,12 @@ export function Sidebar() {
           { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={iconSize} /> },
           { label: 'Gestion', href: '/gestion', icon: <Users size={iconSize} /> },
           { label: 'Ventas', href: '/ventas', icon: <DollarSign size={iconSize} /> },
+        ],
+      },
+      {
+        title: 'Comunicacion',
+        items: [
+          { label: 'WhatsApp', href: '/whatsapp', icon: <MessageCircle size={iconSize} /> },
         ],
       },
     ]

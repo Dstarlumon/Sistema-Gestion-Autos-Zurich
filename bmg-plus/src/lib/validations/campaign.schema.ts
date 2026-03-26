@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const campaignSchema = z.object({
+  organization_id: z.string().uuid().optional(), // auto-filled server-side
   name: z.string().min(1, 'Nombre es requerido'),
   slug: z
     .string()

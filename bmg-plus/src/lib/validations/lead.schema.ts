@@ -1,6 +1,9 @@
 import { z } from 'zod'
 
 export const leadUploadSchema = z.object({
+  campaign_id: z.string().uuid(),
+  agent_id: z.string().uuid().optional(),
+  base_id: z.string().uuid().optional(),
   nombre: z.string().min(1, 'Nombre es requerido'),
   telefono: z.string().min(7, 'Telefono invalido'),
   documento: z.string().optional(),

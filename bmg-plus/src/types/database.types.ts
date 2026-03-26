@@ -1169,6 +1169,13 @@ export type Database = {
       }
     }
     Functions: {
+      get_tipificacion_root: {
+        Args: { tip_id: string }
+        Returns: {
+          root_id: string
+          root_name: string
+        }[]
+      }
       get_user_campaigns: { Args: never; Returns: string[] }
       get_user_org: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }

@@ -3,6 +3,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useCampaignStore } from '@/stores/campaign-store'
+import type { Database } from '@/types/database.types'
+
+type RenewalInsert = Database['public']['Tables']['renewals']['Insert']
 
 export function useRenewals(params?: {
   page?: number
@@ -43,7 +46,7 @@ export function useCreateRenewal() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: Record<string, unknown>) => {
+    mutationFn: async (input: RenewalInsert) => {
       const { data, error } = await supabase
         .from('renewals')
         .insert(input)

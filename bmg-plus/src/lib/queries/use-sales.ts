@@ -3,6 +3,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useCampaignStore } from '@/stores/campaign-store'
+import type { Database } from '@/types/database.types'
+
+type SaleInsert = Database['public']['Tables']['sales']['Insert']
 
 export function useSales(params?: {
   page?: number
@@ -46,7 +49,7 @@ export function useCreateSale() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: Record<string, unknown>) => {
+    mutationFn: async (input: SaleInsert) => {
       const { data, error } = await supabase
         .from('sales')
         .insert(input)

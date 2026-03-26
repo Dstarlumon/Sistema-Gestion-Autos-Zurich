@@ -7,9 +7,12 @@ import {
   Bell,
   Clock,
   ChevronDown,
+  ChevronRight,
   User,
   LogOut,
 } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useUIStore } from '@/stores/ui-store'
 import { useCampaignStore } from '@/stores/campaign-store'
@@ -28,8 +31,43 @@ interface HeaderProps {
   onOpenCommandPalette?: () => void
 }
 
+/** Map pathname segments to human-readable labels */
+const SEGMENT_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard',
+  gestion: 'Gestion de Leads',
+  ventas: 'Ventas',
+  calidad: 'Calidad',
+  auditoria: 'Auditoria',
+  llamadas: 'Llamadas',
+  pausas: 'Pausas',
+  reportes: 'Reportes',
+  admin: 'Admin',
+  usuarios: 'Usuarios',
+  bases: 'Bases',
+  whatsapp: 'WhatsApp',
+  configuracion: 'Configuracion',
+}
+
+function buildBreadcrumbs(pathname: string): { label: string; href: string }[] {
+  const segments = pathname.split('/').filter(Boolean)
+  if (segments.length === 0) return [{ label: 'Dashboard', href: '/dashboard' }]
+
+  return segments.map((segment, index) => {
+    const href = '/' + segments.slice(0, index + 1).join('/')
+    const knownLabel = SEGMENT_LABELS[segment]
+    // If not in the map, check if it looks like a UUID/ID — show as "Lead #<short>"
+    const label = knownLabel
+      ? knownLabel
+      : segment.length >= 8
+        ? `#${segment.slice(0, 8)}`
+        : segment.charAt(0).toUpperCase() + segment.slice(1)
+    return { label, href }
+  })
+}
+
 export function Header({ onOpenCommandPalette }: HeaderProps) {
   const { user, signOut } = useAuth()
+  const pathname = usePathname()
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const { activeCampaignId, setActiveCampaign } = useCampaignStore()
 
@@ -91,7 +129,20 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
         <Menu size={20} />
       </button>
 
-      <span className="text-sm text-slate-400 hidden sm:block">Dashboard</span>
+      <nav className="hidden sm:flex items-center gap-1 text-sm text-slate-400" aria-label="Breadcrumb">
+        {buildBreadcrumbs(pathname).map((crumb, index, arr) => (
+          <span key={crumb.href} className="inline-flex items-center gap-1">
+            {index > 0 && <ChevronRight size={12} className="text-slate-300" />}
+            {index === arr.length - 1 ? (
+              <span className="text-slate-600 dark:text-slate-200 font-medium">{crumb.label}</span>
+            ) : (
+              <Link href={crumb.href} className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                {crumb.label}
+              </Link>
+            )}
+          </span>
+        ))}
+      </nav>
 
       {/* Search — opens command palette */}
       <div className="flex-1 max-w-md mx-4">

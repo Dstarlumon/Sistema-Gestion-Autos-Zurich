@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion, AnimatePresence } from 'motion/react'
@@ -8,7 +8,8 @@ import { TipificacionCascade } from '@/components/forms/tipificacion-cascade'
 import { useCreateGestion } from '@/lib/queries/use-gestiones'
 import { useCreateSale } from '@/lib/queries/use-sales'
 import { useAuth } from '@/hooks/use-auth'
-import { createClient } from '@/lib/supabase/client'
+import { submitGestion } from '@/app/(app)/gestion/actions'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   gestionSchema,
   gestionVentaSchema,
@@ -28,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Phone,
   MessageCircle,
@@ -36,6 +38,7 @@ import {
   Loader2,
   Send,
   CheckCircle2,
+  BellRing,
 } from 'lucide-react'
 
 interface GestionFormProps {
@@ -108,12 +111,13 @@ export function GestionForm({
   const { user } = useAuth()
   const createGestion = useCreateGestion()
   const createSale = useCreateSale()
-  const supabase = createClient()
+  const queryClient = useQueryClient()
 
   // Track root category and specific tipificacion name
   const [rootCategory, setRootCategory] = useState('')
   const [tipificacionName, setTipificacionName] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
+  const [retryNotify, setRetryNotify] = useState(false)
 
   // Determine which conditional section to show
   const isNoContacto = rootCategory.toUpperCase() === 'NO CONTACTO'
@@ -126,6 +130,19 @@ export function GestionForm({
   // Pick schema dynamically based on tipificacion
   const activeSchema = isVenta ? gestionVentaSchema : gestionSchema
 
+  // Keep a ref to the current schema so the resolver always uses the latest version.
+  // react-hook-form captures the resolver at init time, so we use a wrapper that
+  // delegates to the current ref value — ensuring validation stays in sync with
+  // the active schema when switching between VENTA and non-VENTA tipificaciones.
+  const schemaRef = useRef(activeSchema)
+  schemaRef.current = activeSchema
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dynamicResolver = useCallback(async (values: any, context: any, options: any) => {
+    const resolver = zodResolver(schemaRef.current as any)
+    return resolver(values, context, options)
+  }, [])
+
   const {
     register,
     handleSubmit,
@@ -133,17 +150,28 @@ export function GestionForm({
     setValue,
     reset,
     watch,
-    formState: { errors, isSubmitting },
+    trigger,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<GestionVentaInput>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(activeSchema as any),
+    resolver: dynamicResolver,
     defaultValues: {
       lead_id: leadId,
+      campaign_id: campaignId,
+      organization_id: user?.organization_id ?? '',
       canal: 'telefono',
       observacion: '',
       cotizacion: false,
     },
   })
+
+  // Re-validate when schema changes (VENTA <-> non-VENTA switch)
+  const prevIsVenta = useRef(isVenta)
+  useEffect(() => {
+    if (prevIsVenta.current !== isVenta && isDirty) {
+      trigger()
+    }
+    prevIsVenta.current = isVenta
+  }, [isVenta, trigger, isDirty])
 
   const cotizacionValue = watch('cotizacion')
 
@@ -156,78 +184,81 @@ export function GestionForm({
     [setValue]
   )
 
+  const [serverError, setServerError] = useState<string | null>(null)
+
   const onSubmit = async (data: GestionVentaInput) => {
     if (!user) return
 
+    setServerError(null)
+
     try {
-      // 1. Build gestion payload
-      const gestionPayload: Record<string, unknown> = {
+      // Build gestion payload for server action
+      const gestionData = {
         lead_id: data.lead_id,
         campaign_id: campaignId,
-        agent_id: user.id,
+        organization_id: user.organization_id,
         tipificacion_id: data.tipificacion_id,
         canal: data.canal,
-        observacion: data.observacion || null,
-        medio: data.medio || null,
+        medio: data.medio || undefined,
         cotizacion: data.cotizacion ?? false,
-        num_cotizacion: data.num_cotizacion || null,
-        valor_poliza: data.valor_poliza || null,
-        retry_scheduled_at: data.retry_scheduled_at || null,
-        next_contact_at: data.next_contact_at || null,
+        num_cotizacion: data.num_cotizacion || undefined,
+        valor_poliza: data.valor_poliza || undefined,
+        observacion: data.observacion || undefined,
+        retry_scheduled_at: data.retry_scheduled_at || undefined,
+        next_contact_at: data.next_contact_at || undefined,
+        retry_notified: isNoContacto ? !retryNotify : undefined,
       }
 
-      // 2. Create gestion
-      const gestion = await createGestion.mutateAsync(gestionPayload)
+      // Build sale payload if Venta
+      const saleData = isVenta
+        ? {
+            nombre_cliente: leadData.nombre,
+            telefono: leadData.telefono,
+            documento: leadData.documento || undefined,
+            correo: leadData.correo || undefined,
+            placa: leadData.placa || undefined,
+            ciudad: leadData.ciudad || undefined,
+            valor_prima: data.valor_prima!,
+            num_poliza: data.num_poliza || undefined,
+            tipo_seguro: data.tipo_seguro || undefined,
+            medio_pago: data.medio_pago || undefined,
+            fecha_emision: data.fecha_emision || undefined,
+            canal: data.canal,
+          }
+        : undefined
 
-      // 3. If Venta, also create sale
-      if (isVenta) {
-        const salePayload: Record<string, unknown> = {
-          agent_id: user.id,
-          campaign_id: campaignId,
-          lead_id: leadId,
-          gestion_id: gestion.id,
-          nombre_cliente: leadData.nombre,
-          telefono: leadData.telefono,
-          documento: leadData.documento || null,
-          correo: leadData.correo || null,
-          placa: leadData.placa || null,
-          ciudad: leadData.ciudad || null,
-          valor_prima: data.valor_prima,
-          num_poliza: data.num_poliza || null,
-          tipo_seguro: data.tipo_seguro || null,
-          medio_pago: data.medio_pago || null,
-          fecha_emision: data.fecha_emision || null,
-          canal: data.canal,
-        }
-        await createSale.mutateAsync(salePayload)
-      }
-
-      // 4. Update lead status based on tipificacion category
       const newStatus = mapCategoryToLeadStatus(rootCategory, tipificacionName)
 
-      if (newStatus) {
-        await supabase
-          .from('leads')
-          .update({ status: newStatus })
-          .eq('id', leadId)
+      // Single server action handles gestion + sale + lead update atomically
+      await submitGestion(gestionData, newStatus, saleData)
+
+      // Invalidate relevant queries after successful server action
+      queryClient.invalidateQueries({ queryKey: ['gestiones', leadId] })
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      if (isVenta) {
+        queryClient.invalidateQueries({ queryKey: ['sales'] })
       }
 
-      // 5. Show success and reset
+      // Show success and reset
       setShowSuccess(true)
       reset({
         lead_id: leadId,
+        campaign_id: campaignId,
+        organization_id: user?.organization_id ?? '',
         canal: 'telefono',
         observacion: '',
         cotizacion: false,
       })
       setRootCategory('')
       setTipificacionName('')
+      setRetryNotify(false)
 
       setTimeout(() => setShowSuccess(false), 3000)
       onSuccess?.()
     } catch (error) {
-      // Error is handled by react-query's error state
       console.error('Error creating gestion:', error)
+      setServerError(error instanceof Error ? error.message : 'Error al guardar la gestion')
     }
   }
 
@@ -359,6 +390,18 @@ export function GestionForm({
                   />
                 </div>
               </div>
+
+              {/* Notify before retry */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={retryNotify}
+                  onCheckedChange={(checked) => setRetryNotify(checked)}
+                />
+                <span className="flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300">
+                  <BellRing className="size-3" />
+                  Notificarme 15 min antes
+                </span>
+              </label>
             </div>
           </motion.div>
         )}
@@ -673,9 +716,9 @@ export function GestionForm({
       </div>
 
       {/* Error message */}
-      {(createGestion.isError || createSale.isError) && (
+      {(serverError || createGestion.isError || createSale.isError) && (
         <p className="text-sm text-destructive">
-          Error al guardar la gestion. Intenta de nuevo.
+          {serverError || 'Error al guardar la gestion. Intenta de nuevo.'}
         </p>
       )}
     </form>

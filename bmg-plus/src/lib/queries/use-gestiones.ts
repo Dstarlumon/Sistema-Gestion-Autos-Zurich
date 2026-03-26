@@ -2,6 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import type { Database } from '@/types/database.types'
+
+type GestionInsert = Database['public']['Tables']['gestiones']['Insert']
 
 export function useGestionesByLead(leadId: string) {
   const supabase = createClient()
@@ -28,7 +31,7 @@ export function useCreateGestion() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: Record<string, unknown>) => {
+    mutationFn: async (input: GestionInsert) => {
       const { data, error } = await supabase
         .from('gestiones')
         .insert(input)

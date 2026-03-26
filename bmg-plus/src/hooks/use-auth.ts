@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/auth-store'
 import type { UserProfile } from '@/types/auth.types'
 
 export function useAuth() {
   const { user, isLoading, isAuthenticated, setUser, setLoading, clear } = useAuthStore()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     const getProfile = async () => {

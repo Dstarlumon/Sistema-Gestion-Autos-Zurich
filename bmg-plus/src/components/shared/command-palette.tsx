@@ -72,7 +72,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   // Debounced lead search
   const searchLeads = useCallback(async (query: string) => {
-    if (query.length < 2) {
+    // Sanitize query to prevent PostgREST injection via ilike special chars
+    const sanitized = query.replace(/[%_\\()]/g, '')
+
+    if (sanitized.length < 2) {
       setLeads([])
       setIsSearching(false)
       return
@@ -82,11 +85,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     try {
       const supabase = createClient()
 
-      // Search by name (ilike) or phone (ilike)
+      // Search by name (ilike) or phone (ilike) with sanitized input
       const { data, error } = await supabase
         .from('leads')
         .select('id, nombre, telefono, status, campaigns(name)')
-        .or(`nombre.ilike.%${query}%,telefono.ilike.%${query}%`)
+        .or(`nombre.ilike.%${sanitized}%,telefono.ilike.%${sanitized}%`)
         .limit(8)
 
       if (!error && data) {
