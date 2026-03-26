@@ -98,14 +98,16 @@ export function Sidebar() {
     <motion.aside
       animate={{ width: collapsed ? 64 : 260 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="fixed top-0 left-0 h-screen z-40 flex flex-col bg-linear-to-b from-[#0f172a] to-[#1e293b] overflow-hidden"
+      className="fixed top-0 left-0 h-screen z-40 flex flex-col bg-linear-to-b from-[#222831] to-[#2d333f] overflow-hidden"
       style={{ willChange: 'width' }}
     >
       {/* Logo area */}
       <div className="flex items-center gap-3 px-4 h-14 shrink-0">
-        <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center shrink-0">
-          <span className="text-white font-extrabold text-xs">B+</span>
-        </div>
+        <img
+          src="/images/bmg-plus-icon.svg"
+          alt="BMG+"
+          className="w-8 h-8 rounded-lg shrink-0"
+        />
         {!collapsed && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -140,7 +142,7 @@ export function Sidebar() {
                       ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2'}
                       ${
                         active
-                          ? 'bg-linear-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-600/20'
+                          ? 'bg-linear-to-r from-[#fa5058] to-[#66cfd0] text-white shadow-lg shadow-[#fa5058]/20'
                           : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
                       }
                     `}
@@ -176,7 +178,7 @@ export function Sidebar() {
             title={collapsed ? `${user.full_name} - ${roleLabel}` : undefined}
           >
             {/* Avatar */}
-            <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#fa5058] to-[#66cfd0] flex items-center justify-center shrink-0">
               {user.avatar_url ? (
                 <img
                   src={user.avatar_url}

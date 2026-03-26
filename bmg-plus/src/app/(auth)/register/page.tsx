@@ -65,21 +65,7 @@ export default function RegisterPage() {
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-10 w-full max-w-md">
         {/* Branding */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-linear-to-br from-blue-600 to-blue-500 rounded-xl inline-flex items-center justify-center mb-4">
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 2L2 19h20L12 2z" />
-              <line x1="12" y1="9" x2="12" y2="15" />
-            </svg>
-          </div>
+          <img src="/images/bmg-plus-icon.svg" alt="BMG+" className="w-14 h-14 rounded-xl inline-block mb-4" />
           <h1 className="text-2xl font-bold text-white tracking-tight">BMG+</h1>
           <p className="text-white/40 text-xs mt-1 tracking-widest uppercase">
             Deployment Request
@@ -113,7 +99,7 @@ export default function RegisterPage() {
             </div>
             <Link
               href="/login"
-              className="block w-full bg-linear-to-r from-blue-700 to-blue-500 hover:from-blue-600 hover:to-blue-400 text-white font-semibold py-3 rounded-lg transition-all duration-200 text-center"
+              className="block w-full bg-linear-to-r from-[#fa5058] to-[#66cfd0] hover:from-[#fb6a70] hover:to-[#7dd8d9] text-white font-semibold py-3 rounded-lg transition-all duration-200 text-center"
             >
               Return to Login
             </Link>
@@ -148,7 +134,7 @@ export default function RegisterPage() {
                   placeholder="John Doe"
                   autoComplete="name"
                   {...register('fullName')}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
                 />
               </div>
               {errors.fullName && (
@@ -183,7 +169,7 @@ export default function RegisterPage() {
                   placeholder="architect@bmg.plus"
                   autoComplete="email"
                   {...register('email')}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
                 />
               </div>
               {errors.email && (
@@ -218,7 +204,7 @@ export default function RegisterPage() {
                   placeholder="Min. 6 characters"
                   autoComplete="new-password"
                   {...register('password')}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
                 />
               </div>
               {errors.password && (
@@ -252,7 +238,7 @@ export default function RegisterPage() {
                   placeholder="Re-enter security key"
                   autoComplete="new-password"
                   {...register('confirmPassword')}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
                 />
               </div>
               {errors.confirmPassword && (
@@ -273,7 +259,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-linear-to-r from-blue-700 to-blue-500 hover:from-blue-600 hover:to-blue-400 text-white font-semibold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-linear-to-r from-[#fa5058] to-[#66cfd0] hover:from-[#fb6a70] hover:to-[#7dd8d9] text-white font-semibold py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <svg
@@ -317,7 +303,7 @@ export default function RegisterPage() {
         Already have an architect account?{' '}
         <Link
           href="/login"
-          className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+          className="text-[#66cfd0] hover:text-[#66cfd0]/80 font-medium transition-colors"
         >
           Initialize Core
         </Link>

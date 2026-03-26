@@ -34,7 +34,7 @@ function Particles({ count = 2000 }) {
       </bufferGeometry>
       <pointsMaterial
         size={0.015}
-        color="#6366f1"
+        color="#66cfd0"
         transparent
         opacity={0.6}
         sizeAttenuation
@@ -45,7 +45,7 @@ function Particles({ count = 2000 }) {
   )
 }
 
-function FloatingOrb({ position, color, scale = 1 }: { position: [number, number, number], color: string, scale?: number }) {
+function FloatingOrb({ position, color, scale = 1, opacity = 0.08 }: { position: [number, number, number], color: string, scale?: number, opacity?: number }) {
   const mesh = useRef<THREE.Mesh>(null)
 
   useFrame(({ clock }) => {
@@ -58,7 +58,7 @@ function FloatingOrb({ position, color, scale = 1 }: { position: [number, number
   return (
     <mesh ref={mesh} position={position} scale={scale}>
       <sphereGeometry args={[1, 32, 32]} />
-      <meshBasicMaterial color={color} transparent opacity={0.08} />
+      <meshBasicMaterial color={color} transparent opacity={opacity} />
     </mesh>
   )
 }
@@ -72,9 +72,9 @@ export default function LoginScene() {
         gl={{ antialias: true, alpha: true }}
       >
         <Particles count={2000} />
-        <FloatingOrb position={[-2, 1, -2]} color="#3b82f6" scale={1.5} />
-        <FloatingOrb position={[2, -1, -3]} color="#8b5cf6" scale={1.2} />
-        <FloatingOrb position={[0, 2, -4]} color="#06b6d4" scale={1} />
+        <FloatingOrb position={[-2, 1, -2]} color="#fa5058" scale={1.5} />
+        <FloatingOrb position={[2, -1, -3]} color="#66cfd0" scale={1.2} />
+        <FloatingOrb position={[0, 2, -4]} color="#222831" scale={1} opacity={0.15} />
       </Canvas>
     </div>
   )

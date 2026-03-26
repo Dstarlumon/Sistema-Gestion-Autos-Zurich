@@ -63,6 +63,12 @@
   --color-brand-primary: var(--da-primary);
   --color-brand-primary-container: var(--da-primary-container);
 
+  /* --- BMG+ brand identity colors --------------------------- */
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-coral: var(--brand-coral);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-light: var(--brand-light);
+
   /* --- Campaign accent colors ------------------------------- */
   --color-campaign-autos: #3b82f6;
   --color-campaign-hogar: #059669;
@@ -83,58 +89,64 @@
    CSS Custom Properties — Light theme (default)
    ============================================================ */
 :root {
+  /* --- BMG+ Brand identity ---------------------------------- */
+  --brand-dark: #222831;
+  --brand-coral: #fa5058;
+  --brand-teal: #66cfd0;
+  --brand-light: #f5ecfc;
+
   /* --- shadcn/ui variables ---------------------------------- */
   --background: #faf8ff;
-  --foreground: #131b2e;
+  --foreground: #222831;
   --card: #ffffff;
-  --card-foreground: #131b2e;
+  --card-foreground: #222831;
   --popover: #ffffff;
-  --popover-foreground: #131b2e;
-  --primary: #00288e;
+  --popover-foreground: #222831;
+  --primary: #222831;
   --primary-foreground: #ffffff;
-  --secondary: #dae2fd;
-  --secondary-foreground: #131b2e;
-  --muted: #f2f3ff;
+  --secondary: #e8e4ef;
+  --secondary-foreground: #222831;
+  --muted: #f5ecfc;
   --muted-foreground: #5b6178;
-  --accent: #eaedff;
-  --accent-foreground: #131b2e;
+  --accent: #f0eaf8;
+  --accent-foreground: #222831;
   --destructive: #dc2626;
   --border: color-mix(in srgb, #c4c5d5 15%, transparent);
   --input: color-mix(in srgb, #c4c5d5 15%, transparent);
-  --ring: #00288e;
-  --chart-1: #3b82f6;
-  --chart-2: #059669;
+  --ring: #222831;
+  --chart-1: #fa5058;
+  --chart-2: #66cfd0;
   --chart-3: #d97706;
   --chart-4: #dc2626;
-  --chart-5: #1e40af;
+  --chart-5: #222831;
   --radius: 0.625rem;
 
   /* --- Sidebar ---------------------------------------------- */
-  --sidebar: #f2f3ff;
-  --sidebar-foreground: #131b2e;
-  --sidebar-primary: #00288e;
+  --sidebar: #f5ecfc;
+  --sidebar-foreground: #222831;
+  --sidebar-primary: #222831;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eaedff;
-  --sidebar-accent-foreground: #131b2e;
+  --sidebar-accent: #f0eaf8;
+  --sidebar-accent-foreground: #222831;
   --sidebar-border: color-mix(in srgb, #c4c5d5 15%, transparent);
-  --sidebar-ring: #00288e;
+  --sidebar-ring: #222831;
 
   /* --- Digital Architect surface hierarchy ------------------- */
   --da-surface: #faf8ff;
   --da-surface-container-lowest: #ffffff;
-  --da-surface-container-low: #f2f3ff;
-  --da-surface-container: #eaedff;
-  --da-surface-container-highest: #dae2fd;
-  --da-surface-variant: #dae2fd;
-  --da-on-surface: #131b2e;
+  --da-surface-container-low: #f5ecfc;
+  --da-surface-container: #f0eaf8;
+  --da-surface-container-highest: #e8e4ef;
+  --da-surface-variant: #e8e4ef;
+  --da-on-surface: #222831;
   --da-outline-variant: #c4c5d5;
 
   /* --- Digital Architect brand ------------------------------ */
-  --da-primary: #00288e;
-  --da-primary-container: #1e40af;
+  --da-primary: #222831;
+  --da-primary-container: #2d333f;
 
   /* --- Ambient shadow --------------------------------------- */
-  --shadow-ambient: 0 20px 40px -12px rgba(19, 27, 46, 0.06);
+  --shadow-ambient: 0 20px 40px -12px rgba(34, 40, 49, 0.06);
 
   /* --- Ghost border ----------------------------------------- */
   --ghost-border: 1px solid color-mix(in srgb, #c4c5d5 15%, transparent);
@@ -144,50 +156,55 @@
    CSS Custom Properties — Dark theme
    ============================================================ */
 .dark {
-  --background: #0c0f1a;
-  --foreground: #e2e4f0;
-  --card: #151929;
-  --card-foreground: #e2e4f0;
-  --popover: #151929;
-  --popover-foreground: #e2e4f0;
-  --primary: #7da0ff;
-  --primary-foreground: #001650;
-  --secondary: #1e2744;
-  --secondary-foreground: #e2e4f0;
-  --muted: #1a2038;
-  --muted-foreground: #8e93af;
-  --accent: #1e2744;
-  --accent-foreground: #e2e4f0;
+  --brand-dark: #222831;
+  --brand-coral: #fa5058;
+  --brand-teal: #66cfd0;
+  --brand-light: #f5ecfc;
+
+  --background: #222831;
+  --foreground: #f2f2f2;
+  --card: #2d333f;
+  --card-foreground: #f2f2f2;
+  --popover: #2d333f;
+  --popover-foreground: #f2f2f2;
+  --primary: #66cfd0;
+  --primary-foreground: #222831;
+  --secondary: #343b48;
+  --secondary-foreground: #f2f2f2;
+  --muted: #2d333f;
+  --muted-foreground: #9ca3af;
+  --accent: #343b48;
+  --accent-foreground: #f2f2f2;
   --destructive: #ef4444;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.15);
-  --ring: #7da0ff;
-  --chart-1: #60a5fa;
-  --chart-2: #34d399;
+  --ring: #66cfd0;
+  --chart-1: #fa5058;
+  --chart-2: #66cfd0;
   --chart-3: #fbbf24;
   --chart-4: #f87171;
-  --chart-5: #818cf8;
+  --chart-5: #f5ecfc;
 
-  --sidebar: #151929;
-  --sidebar-foreground: #e2e4f0;
-  --sidebar-primary: #7da0ff;
-  --sidebar-primary-foreground: #e2e4f0;
-  --sidebar-accent: #1e2744;
-  --sidebar-accent-foreground: #e2e4f0;
+  --sidebar: #222831;
+  --sidebar-foreground: #f2f2f2;
+  --sidebar-primary: #66cfd0;
+  --sidebar-primary-foreground: #222831;
+  --sidebar-accent: #343b48;
+  --sidebar-accent-foreground: #f2f2f2;
   --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: #7da0ff;
+  --sidebar-ring: #66cfd0;
 
-  --da-surface: #0c0f1a;
-  --da-surface-container-lowest: #080b14;
-  --da-surface-container-low: #151929;
-  --da-surface-container: #1a2038;
-  --da-surface-container-highest: #1e2744;
-  --da-surface-variant: #1e2744;
-  --da-on-surface: #e2e4f0;
-  --da-outline-variant: #3a4060;
+  --da-surface: #222831;
+  --da-surface-container-lowest: #1a1f28;
+  --da-surface-container-low: #2d333f;
+  --da-surface-container: #343b48;
+  --da-surface-container-highest: #3d4452;
+  --da-surface-variant: #343b48;
+  --da-on-surface: #f2f2f2;
+  --da-outline-variant: #4a5060;
 
-  --da-primary: #7da0ff;
-  --da-primary-container: #3b6cdf;
+  --da-primary: #66cfd0;
+  --da-primary-container: #fa5058;
 
   --shadow-ambient: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
   --ghost-border: 1px solid rgba(255, 255, 255, 0.08);
@@ -293,9 +310,9 @@
     border: var(--ghost-border);
   }
 
-  /* Primary gradient for high-impact CTAs */
+  /* Primary gradient for high-impact CTAs — brand signature coral→teal */
   .gradient-primary {
-    background: linear-gradient(135deg, var(--da-primary), var(--da-primary-container));
+    background: linear-gradient(135deg, #fa5058, #66cfd0);
   }
 
   /* Campaign accent left-border glow (for Lead Insight Chips) */

@@ -114,7 +114,7 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
         <select
           value={activeCampaignId ?? ''}
           onChange={(e) => setActiveCampaign(e.target.value || null)}
-          className="h-8 px-3 rounded-lg bg-slate-50 text-xs text-slate-600 border-0 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+          className="h-8 px-3 rounded-lg bg-slate-50 text-xs text-slate-600 border-0 focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/20 cursor-pointer"
         >
           <option value="">Todas las campanias</option>
           {campaigns.map((c) => (
@@ -152,7 +152,7 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
             }}
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            <div className="w-7 h-7 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-full bg-linear-to-br from-[#fa5058] to-[#66cfd0] flex items-center justify-center shrink-0">
               {user?.avatar_url ? (
                 <img
                   src={user.avatar_url}
