@@ -280,7 +280,7 @@
                 <button type="submit" class="login-btn">Ingresar al Sistema</button>
             </form>
             <!-- Solo visible la primera vez (sin usuarios registrados) -->
-            <div id="firstSetupHint" style="display:none;margin-top:16px;padding:12px 14px;background:rgba(255,200,50,.08);border:1px solid rgba(255,200,50,.22);border-radius:10px;text-align:center">
+            <div id="firstSetupHint" style="display:block;margin-top:16px;padding:12px 14px;background:rgba(255,200,50,.08);border:1px solid rgba(255,200,50,.22);border-radius:10px;text-align:center">
                 <p style="color:rgba(255,218,80,.9);font-size:12px;margin-bottom:10px;line-height:1.6">
                     ⚙️ <strong>Primera configuración</strong><br>
                     No hay usuarios en el sistema.<br>Crea el Coordinador principal.
@@ -404,6 +404,9 @@
                 </div>
                 <button class="user-dropdown-item" onclick="openProfileModal()">
                     <span class="icon">👤</span> Mi Perfil
+                </button>
+                <button class="user-dropdown-item" id="dropdownConfigBtn" onclick="document.getElementById('userDropdown').classList.remove('open');switchModule('config')">
+                    <span class="icon">⚙️</span> Configuración
                 </button>
                 <div class="user-dropdown-sep"></div>
                 <button class="user-dropdown-item" onclick="doLogout()" style="color:#c62828">
@@ -1262,7 +1265,7 @@ async function showLoginPanel() {
     if (!url) { hint.style.display = 'block'; return; }
     try {
         const r = await apiUserRequest({ action: 'checkUsers' });
-        hint.style.display = (r.count === 0) ? 'block' : 'none';
+        hint.style.display = (r.status === 'ok' && r.count > 0) ? 'none' : 'block';
     } catch(e) {
         // On error (old URL, network issue, etc.) — still show setup hint
         hint.style.display = 'block';
@@ -1394,6 +1397,8 @@ async function doLogin(e) {
 
         const configTab = document.querySelector('.nav-tab[data-module="config"]');
         if (configTab) configTab.style.display = user.rol === 'Agente' ? 'none' : '';
+        const configDropBtn = document.getElementById('dropdownConfigBtn');
+        if (configDropBtn) configDropBtn.style.display = user.rol === 'Agente' ? 'none' : '';
 
         document.getElementById('dropdownName').textContent = user.nombre;
         document.getElementById('dropdownRole').textContent = user.rol + (user.agente !== user.nombre ? ' — ' + user.agente : '');
@@ -1585,6 +1590,8 @@ function doLogout() {
     document.body.removeAttribute('data-rol');
     const configTab = document.querySelector('.nav-tab[data-module="config"]');
     if (configTab) configTab.style.display = '';
+    const configDropBtn2 = document.getElementById('dropdownConfigBtn');
+    if (configDropBtn2) configDropBtn2.style.display = '';
     document.querySelectorAll('.module-tab[data-view="form"]').forEach(t => t.style.display = '');
 }
 
