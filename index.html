@@ -22,9 +22,9 @@
         .login-logo p{color:rgba(255,255,255,.4);font-size:11px;margin-top:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600}
         .login-card .form-group{margin-bottom:18px}
         .login-card label{display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,.55);margin-bottom:7px;letter-spacing:.5px;text-transform:uppercase}
-        .login-card input,.login-card select{width:100%;padding:11px 14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;font-size:14px;color:#fff;transition:all .25s;font-family:inherit}
-        .login-card input::placeholder{color:rgba(255,255,255,.3)}
-        .login-card input:focus,.login-card select:focus{outline:none;border-color:rgba(100,160,255,.6);background:rgba(255,255,255,.08);box-shadow:0 0 0 3px rgba(33,103,174,.25)}
+        .login-card input,.login-card select{width:100%;padding:11px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(150,130,255,.25);border-radius:10px;font-size:14px;color:#c4b5ff;transition:all .25s;font-family:inherit;caret-color:#c4b5ff}
+        .login-card input::placeholder{color:rgba(150,130,255,.4)}
+        .login-card input:focus,.login-card select:focus{outline:none;border-color:rgba(180,150,255,.7);background:rgba(120,80,255,.08);box-shadow:0 0 0 3px rgba(150,100,255,.2)}
         .login-card select option{background:#0a1228;color:#fff}
         /* Anular el fondo blanco del autocompletado — color sólido obligatorio */
         .login-card input{color-scheme:dark}
@@ -32,11 +32,11 @@
         .login-card input:-webkit-autofill:hover,
         .login-card input:-webkit-autofill:focus,
         .login-card input:-webkit-autofill:active{
-            -webkit-box-shadow:0 0 0 1000px #0d1a3e inset !important;
-            box-shadow:0 0 0 1000px #0d1a3e inset !important;
-            -webkit-text-fill-color:#ffffff !important;
-            color:#ffffff !important;
-            caret-color:#fff !important;
+            -webkit-box-shadow:0 0 0 1000px #0b1230 inset !important;
+            box-shadow:0 0 0 1000px #0b1230 inset !important;
+            -webkit-text-fill-color:#c4b5ff !important;
+            color:#c4b5ff !important;
+            caret-color:#c4b5ff !important;
             border-color:rgba(255,255,255,.18) !important;
             transition:background-color 99999s ease 0s,color 99999s ease 0s !important;
         }
@@ -159,6 +159,9 @@
         .url-row input{flex:1;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px}
         .url-row input:focus{outline:none;border-color:#003399}
 
+        /* ─── ROLE-BASED RESTRICTIONS ─── */
+        body[data-rol="Agente"] .btn-danger { display: none !important; }
+        body[data-rol="Agente"] .action-buttons { display: none !important; }
         /* ─── SOURCE BADGE ─── */
         .source-tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700}
         .source-inbound{background:#E8F4FD;color:#2167AE}
@@ -261,11 +264,11 @@
             <form onsubmit="doLogin(event)">
                 <div class="form-group">
                     <label>Usuario</label>
-                    <input type="text" id="login_username" placeholder="Tu nombre de usuario" required autocomplete="username">
+                    <input type="text" id="login_username" placeholder="Tu nombre de usuario" required autocomplete="new-password">
                 </div>
                 <div class="form-group">
                     <label>Contraseña</label>
-                    <input type="password" id="login_password" placeholder="••••••••" required autocomplete="current-password">
+                    <input type="password" id="login_password" placeholder="••••••••" required autocomplete="new-password">
                 </div>
                 <div id="login_error" style="color:#e53935;font-size:12px;margin-bottom:8px;display:none"></div>
                 <button type="submit" class="login-btn">Ingresar al Sistema</button>
@@ -1029,7 +1032,7 @@
 
         <div class="config-section" id="userMgmtSection">
             <div class="config-title">👤 Gestión de Usuarios</div>
-            <p style="font-size:13px;color:#666;margin-bottom:4px">Solo visible para Coordinadores. Aquí puedes activar o desactivar usuarios.</p>
+            <p style="font-size:13px;color:#666;margin-bottom:10px">Panel de administración de usuarios — solo visible para Coordinadores.</p>
             <div id="userMgmtContainer"></div>
         </div>
 
@@ -1288,10 +1291,14 @@ async function doLogin(e) {
         }, 100);
     }
 
-    if (user.rol === 'Usuario') {
+    if (user.rol === 'Usuario' || user.rol === 'Agente') {
+        // Hide "Nuevo Registro" tabs — read-only mode for both Usuario and Agente
         document.querySelectorAll('.module-tab[data-view="form"]').forEach(t => t.style.display = 'none');
-        document.getElementById('gestion-tab-table')?.click();
+        // Switch to table view
+        document.querySelector('.module-tab[data-view="table"]')?.click();
     }
+    // Mark body with role class so CSS can hide delete buttons
+    document.body.setAttribute('data-rol', user.rol);
 
     // Hide Config tab for Agente role
     const configTab = document.querySelector('.nav-tab[data-module="config"]');
@@ -1470,48 +1477,151 @@ function doLogout() {
     document.getElementById('login_password').value = '';
     document.getElementById('login_error').style.display = 'none';
     document.getElementById('userDropdown')?.classList.remove('open');
-    // Reset config tab visibility
+    document.body.removeAttribute('data-rol');
+    // Reset config tab visibility + form tabs
     const configTab = document.querySelector('.nav-tab[data-module="config"]');
     if (configTab) configTab.style.display = '';
+    document.querySelectorAll('.module-tab[data-view="form"]').forEach(t => t.style.display = '');
 }
 
 // User Management (Coordinador only)
 function renderUserMgmtTable() {
     const container = document.getElementById('userMgmtContainer');
     if (!container) return;
-    if (currentUser?.rol !== 'Coordinador') {
-        container.style.display = 'none'; return;
-    }
+    if (currentUser?.rol !== 'Coordinador') { container.style.display = 'none'; return; }
     container.style.display = 'block';
     const users = getStoredUsers();
-    if (!users.length) {
-        container.innerHTML = '<p style="color:#aaa;font-size:13px">No hay usuarios registrados.</p>';
-        return;
-    }
-    const rows = users.map(u => `
+
+    const rows = users.length ? users.map(u => `
         <tr>
-            <td>${u.nombre}</td>
-            <td>@${u.username}</td>
-            <td><span class="role-badge ${u.rol.toLowerCase()}">${u.rol}</span></td>
-            <td>${u.agente || '-'}</td>
-            <td style="color:${u.activo!==false?'#2e7d32':'#c62828'};font-weight:700">${u.activo!==false?'Activo':'Inactivo'}</td>
             <td>
-                ${u.id !== currentUser.id ? `<button class="btn btn-small ${u.activo!==false?'btn-danger':'btn-success'}" onclick="toggleUserActive(${u.id})">${u.activo!==false?'Desactivar':'Activar'}</button>` : '(tú)'}
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#003399,#2167AE);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;overflow:hidden">
+                        ${u.photo ? `<img src="${u.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : u.nombre.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <div style="font-weight:600;font-size:13px">${u.nombre}</div>
+                        <div style="font-size:11px;color:#999">@${u.username}</div>
+                    </div>
+                </div>
+            </td>
+            <td><span class="role-badge ${u.rol.toLowerCase()}">${u.rol}</span></td>
+            <td style="font-size:12px;color:#666">${u.agente || '-'}</td>
+            <td style="font-size:11px;color:#999">${u.email||''}</td>
+            <td>
+                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:${u.activo!==false?'#2e7d32':'#c62828'}">
+                    <span style="width:7px;height:7px;border-radius:50%;background:${u.activo!==false?'#4caf50':'#e53935'};display:inline-block"></span>
+                    ${u.activo!==false?'Activo':'Inactivo'}
+                </span>
+            </td>
+            <td>
+                <div style="display:flex;gap:5px;flex-wrap:wrap">
+                    ${u.id !== currentUser.id ? `
+                        <button class="btn btn-small ${u.activo!==false?'btn-warning':'btn-success'}" onclick="toggleUserActive(${u.id})" style="${u.activo!==false?'background:#fff3e0;color:#e65100;border:1px solid #ffe0b2':''}">
+                            ${u.activo!==false?'⏸ Desactivar':'▶ Activar'}
+                        </button>
+                        <button class="btn btn-small btn-danger" onclick="adminDeleteUser(${u.id})" title="Eliminar usuario">🗑</button>
+                    ` : '<span style="color:#aaa;font-size:11px;font-style:italic">Tú</span>'}
+                </div>
             </td>
         </tr>
-    `).join('');
+    `).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">No hay usuarios registrados</td></tr>';
+
+    // Create user form
+    const agentOptions = AGENTS.map(a => `<option value="${a}">${a}</option>`).join('');
+
     container.innerHTML = `
         <table class="user-mgmt-table">
-            <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Agente</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Usuario</th><th>Rol</th><th>Agente</th><th>Correo</th><th>Estado</th><th>Acciones</th>
+                </tr>
+            </thead>
             <tbody>${rows}</tbody>
         </table>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:2px solid #E8F4FD">
+            <div style="font-size:13px;font-weight:700;color:#003399;margin-bottom:12px">➕ Crear Nuevo Usuario</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
+                <div class="form-group">
+                    <label style="font-size:11px;font-weight:600;color:#666">Nombre completo</label>
+                    <input type="text" id="admin_new_nombre" placeholder="Nombre del usuario">
+                </div>
+                <div class="form-group">
+                    <label style="font-size:11px;font-weight:600;color:#666">Usuario (login)</label>
+                    <input type="text" id="admin_new_username" placeholder="ej: johana.soto">
+                </div>
+                <div class="form-group">
+                    <label style="font-size:11px;font-weight:600;color:#666">Contraseña inicial</label>
+                    <input type="text" id="admin_new_password" placeholder="Mínimo 6 caracteres">
+                </div>
+                <div class="form-group">
+                    <label style="font-size:11px;font-weight:600;color:#666">Rol</label>
+                    <select id="admin_new_rol" onchange="toggleAdminAgentField()">
+                        <option value="Agente">Agente</option>
+                        <option value="Coordinador">Coordinador</option>
+                        <option value="Usuario">Usuario (Solo lectura)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="admin_new_agente_group">
+                    <label style="font-size:11px;font-weight:600;color:#666">Agente asignado</label>
+                    <select id="admin_new_agente">${agentOptions}</select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:11px;font-weight:600;color:#666">Correo (opcional)</label>
+                    <input type="email" id="admin_new_email" placeholder="correo@email.com">
+                </div>
+            </div>
+            <div id="admin_create_error" style="color:#e53935;font-size:12px;display:none;margin-bottom:8px"></div>
+            <button class="btn btn-primary" onclick="adminCreateUser()">💾 Crear Usuario</button>
+        </div>
     `;
+}
+
+function toggleAdminAgentField() {
+    const rol = document.getElementById('admin_new_rol')?.value;
+    const grp = document.getElementById('admin_new_agente_group');
+    if (grp) grp.style.display = rol === 'Agente' ? 'flex' : 'none';
+}
+
+async function adminCreateUser() {
+    const nombre   = document.getElementById('admin_new_nombre')?.value.trim();
+    const username = document.getElementById('admin_new_username')?.value.trim().toLowerCase();
+    const password = document.getElementById('admin_new_password')?.value;
+    const rol      = document.getElementById('admin_new_rol')?.value;
+    const agente   = rol === 'Agente' ? document.getElementById('admin_new_agente')?.value : nombre;
+    const email    = document.getElementById('admin_new_email')?.value.trim();
+    const errEl    = document.getElementById('admin_create_error');
+
+    errEl.style.display = 'none';
+    if (!nombre || !username || !password) { errEl.textContent = 'Completa nombre, usuario y contraseña'; errEl.style.display='block'; return; }
+    if (password.length < 6) { errEl.textContent = 'La contraseña debe tener al menos 6 caracteres'; errEl.style.display='block'; return; }
+
+    const users = getStoredUsers();
+    if (users.find(u => u.username === username)) { errEl.textContent = 'Ese nombre de usuario ya existe'; errEl.style.display='block'; return; }
+
+    const hash = await hashPass(password);
+    users.push({ id: Date.now(), nombre, username, password: hash, rol, agente: rol === 'Agente' ? agente : nombre, email, activo: true, createdAt: new Date().toISOString() });
+    saveStoredUsers(users);
+    showToast(`✅ Usuario @${username} creado exitosamente`, 'success');
+    renderUserMgmtTable();
 }
 
 function toggleUserActive(userId) {
     const users = getStoredUsers();
     const u = users.find(u => u.id === userId);
-    if (u) { u.activo = u.activo === false ? true : false; saveStoredUsers(users); renderUserMgmtTable(); }
+    if (u) { u.activo = u.activo === false ? true : false; saveStoredUsers(users); renderUserMgmtTable(); showToast(u.activo !== false ? '✅ Usuario activado' : '⏸ Usuario desactivado', 'info'); }
+}
+
+function adminDeleteUser(userId) {
+    const users = getStoredUsers();
+    const u = users.find(u => u.id === userId);
+    if (!u) return;
+    if (!confirm(`¿Eliminar permanentemente al usuario "${u.nombre}" (@${u.username})? Esta acción no se puede deshacer.`)) return;
+    const newUsers = users.filter(u => u.id !== userId);
+    saveStoredUsers(newUsers);
+    showToast(`🗑️ Usuario @${u.username} eliminado`, 'warning');
+    renderUserMgmtTable();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1586,15 +1696,25 @@ function populateSelects() {
     ];
     agentSelects.forEach(sel => {
         if (!sel) return;
-        sel.innerHTML = '<option value="">Seleccionar</option>';
-        AGENTS.forEach(a => {
-            const o = document.createElement('option');
-            o.value = a; o.textContent = a;
-            sel.appendChild(o);
-        });
-        // Pre-select if agent role
         if (currentUser?.rol === 'Agente' && currentUser.agente) {
+            // Agente: show only own name, locked
+            sel.innerHTML = '';
+            const o = document.createElement('option');
+            o.value = currentUser.agente; o.textContent = currentUser.agente;
+            sel.appendChild(o);
             sel.value = currentUser.agente;
+            sel.disabled = true;
+            sel.style.background = '#f5f7fa';
+            sel.style.color = '#555';
+            sel.style.cursor = 'not-allowed';
+        } else {
+            sel.disabled = false;
+            sel.innerHTML = '<option value="">Seleccionar</option>';
+            AGENTS.forEach(a => {
+                const o = document.createElement('option');
+                o.value = a; o.textContent = a;
+                sel.appendChild(o);
+            });
         }
     });
 
