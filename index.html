@@ -22,23 +22,29 @@
         .login-logo p{color:rgba(255,255,255,.4);font-size:11px;margin-top:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600}
         .login-card .form-group{margin-bottom:18px}
         .login-card label{display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,.55);margin-bottom:7px;letter-spacing:.5px;text-transform:uppercase}
-        .login-card input,.login-card select{width:100%;padding:11px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(150,130,255,.25);border-radius:10px;font-size:14px;color:#c4b5ff;transition:all .25s;font-family:inherit;caret-color:#c4b5ff}
+        .login-card input,.login-card select{width:100%;padding:11px 14px;background:#0e1635;border:1px solid rgba(150,130,255,.25);border-radius:10px;font-size:14px;color:#c4b5ff;transition:border-color .25s,box-shadow .25s;font-family:inherit;caret-color:#c4b5ff}
         .login-card input::placeholder{color:rgba(150,130,255,.4)}
         .login-card input:focus,.login-card select:focus{outline:none;border-color:rgba(180,150,255,.7);background:rgba(120,80,255,.08);box-shadow:0 0 0 3px rgba(150,100,255,.2)}
         .login-card select option{background:#0a1228;color:#fff}
         /* Anular el fondo blanco del autocompletado — color sólido obligatorio */
-        .login-card input{color-scheme:dark}
+        .login-card input{color-scheme:dark;background:#0b1230 !important}
+        /* Animation trick: overrides Chrome autofill yellow/white background */
+        @keyframes loginInputAutofill {
+            0%,100%{background:#0b1230;color:#c4b5ff}
+        }
         .login-card input:-webkit-autofill,
         .login-card input:-webkit-autofill:hover,
         .login-card input:-webkit-autofill:focus,
         .login-card input:-webkit-autofill:active{
+            animation: loginInputAutofill 1ms linear 0s 99999 !important;
             -webkit-box-shadow:0 0 0 1000px #0b1230 inset !important;
             box-shadow:0 0 0 1000px #0b1230 inset !important;
             -webkit-text-fill-color:#c4b5ff !important;
             color:#c4b5ff !important;
             caret-color:#c4b5ff !important;
             border-color:rgba(255,255,255,.18) !important;
-            transition:background-color 99999s ease 0s,color 99999s ease 0s !important;
+            background-color:#0b1230 !important;
+            transition:background-color 99999s ease 0s !important;
         }
         .login-btn{width:100%;padding:13px;background:linear-gradient(135deg,#1a4db5,#2167AE 50%,#248BCC);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;transition:all .25s;letter-spacing:.3px;box-shadow:0 4px 20px rgba(33,103,174,.4)}
         .login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(33,103,174,.55);filter:brightness(1.1)}
@@ -261,7 +267,7 @@
         </div>
         <!-- ── LOGIN NORMAL ── -->
         <div id="loginPanel">
-            <form onsubmit="doLogin(event)">
+            <form onsubmit="doLogin(event)" autocomplete="off">
                 <div class="form-group">
                     <label>Usuario</label>
                     <input type="text" id="login_username" placeholder="Tu nombre de usuario" required autocomplete="new-password">
@@ -286,6 +292,9 @@
             <p style="color:rgba(255,255,255,.22);font-size:11px;text-align:center;margin-top:16px;line-height:1.5">
                 ¿No tienes acceso?<br>Contacta a tu Coordinador.
             </p>
+            <p style="text-align:center;margin-top:8px">
+                <span onclick="clearLoginSession()" style="color:rgba(150,130,255,.4);font-size:10px;cursor:pointer;text-decoration:underline;text-underline-offset:2px" title="Usar si ves datos de una sesión anterior">Limpiar sesión guardada</span>
+            </p>
         </div>
 
         <!-- ── PRIMER ACCESO — solo cuando no hay usuarios ── -->
@@ -297,7 +306,7 @@
                     Los demás usuarios se crean desde el panel de administración.
                 </p>
             </div>
-            <form onsubmit="doRegister(event)">
+            <form onsubmit="doRegister(event)" autocomplete="off">
                 <div class="form-group">
                     <label style="color:rgba(255,218,80,.9)">🌐 URL del Web App (Google Apps Script)</label>
                     <input type="url" id="reg_api_url" placeholder="https://script.google.com/macros/s/..." required autocomplete="new-password" style="font-size:11px">
@@ -1255,7 +1264,8 @@ async function showLoginPanel() {
         const r = await apiUserRequest({ action: 'checkUsers' });
         hint.style.display = (r.count === 0) ? 'block' : 'none';
     } catch(e) {
-        hint.style.display = 'none';
+        // On error (old URL, network issue, etc.) — still show setup hint
+        hint.style.display = 'block';
     }
 }
 
@@ -1553,6 +1563,15 @@ async function saveProfile() {
     }
 }
 
+function clearLoginSession() {
+    localStorage.removeItem(SESSION_KEY);
+    document.getElementById('login_username').value = '';
+    document.getElementById('login_password').value = '';
+    document.getElementById('login_error').style.display = 'none';
+    showLoginPanel();
+    showToast('Sesión limpiada. Ya puedes iniciar sesión.', 'info');
+}
+
 function doLogout() {
     localStorage.removeItem(SESSION_KEY);
     _currentUserFullData = null;
@@ -1752,16 +1771,11 @@ async function adminDeleteUser(userId, nombre, username) {
 // INICIALIZACIÓN
 // ═══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-    // ── Fix: evitar que Chrome pinte los inputs de blanco al autocompletar ──
-    // Technique: readonly → remove readonly on focus, so autofill doesn't pre-trigger
-    const loginInputs = document.querySelectorAll('#loginPanel input, #registerPanel input');
-    loginInputs.forEach(inp => {
-        inp.setAttribute('readonly', 'true');
-        inp.addEventListener('focus', () => inp.removeAttribute('readonly'), { once: false });
-        inp.addEventListener('click', () => inp.removeAttribute('readonly'));
+    // Disable autocomplete on login forms
+    document.querySelectorAll('#loginPanel form, #registerPanel form').forEach(f => {
+        f.setAttribute('autocomplete','off');
+        f.querySelectorAll('input').forEach(inp => inp.setAttribute('autocomplete','new-password'));
     });
-    // Ensure form autocomplete off
-    document.querySelectorAll('#loginPanel form, #registerPanel form').forEach(f => f.setAttribute('autocomplete','off'));
 
     // Populate register agent select (hidden for first-setup flow)
     const regSel = document.getElementById('reg_agente');
