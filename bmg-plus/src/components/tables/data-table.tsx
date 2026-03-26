@@ -5,11 +5,14 @@ import { motion, AnimatePresence } from 'motion/react'
 import { cn } from '@/lib/utils'
 import {
   Table,
+  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+
+const MotionTableRow = motion.create(TableRow)
 
 export interface Column<T> {
   key: string
@@ -137,13 +140,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
         {/* Body with crossfade on data change */}
         <AnimatePresence mode="wait">
-          <motion.tbody
-            key={dataKey}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <TableBody key={dataKey}>
             {/* Loading skeleton */}
             {isLoading &&
               Array.from({ length: 6 }).map((_, i) => (
@@ -169,7 +166,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 const isNewRow = newRowIds.has(rowId)
 
                 return (
-                  <motion.tr
+                  <MotionTableRow
                     key={rowId}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -199,10 +196,10 @@ export function DataTable<T extends Record<string, unknown>>({
                           : (row[col.key] as React.ReactNode) ?? '\u2014'}
                       </TableCell>
                     ))}
-                  </motion.tr>
+                  </MotionTableRow>
                 )
               })}
-          </motion.tbody>
+          </TableBody>
         </AnimatePresence>
       </Table>
 

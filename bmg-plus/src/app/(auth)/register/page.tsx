@@ -42,12 +42,10 @@ export default function RegisterPage() {
     setSuccess(false)
 
     // Validate invite code server-side
-    if (data.inviteCode != null) {
-      const isValid = await verifyInviteCode(data.inviteCode)
-      if (!isValid) {
-        setError('Invalid invite code. Contact your administrator.')
-        return
-      }
+    const codeResult = await verifyInviteCode(data.inviteCode || '')
+    if (codeResult.required && !codeResult.valid) {
+      setError('Código de invitación inválido o vacío. Contacta a tu administrador.')
+      return
     }
 
     const supabase = createClient()
