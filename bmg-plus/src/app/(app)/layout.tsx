@@ -17,5 +17,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!profile) redirect('/login')
 
+  // Check if user needs onboarding (no organization linked)
+  if (!profile.organization_id) {
+    redirect('/onboarding')
+  }
+
   return <AppShell initialProfile={profile as UserProfile}>{children}</AppShell>
 }

@@ -706,24 +706,30 @@ export type Database = {
           config: Json | null
           created_at: string | null
           id: string
+          industry: string | null
           logo_url: string | null
           name: string
+          plan: string | null
           updated_at: string | null
         }
         Insert: {
           config?: Json | null
           created_at?: string | null
           id?: string
+          industry?: string | null
           logo_url?: string | null
           name: string
+          plan?: string | null
           updated_at?: string | null
         }
         Update: {
           config?: Json | null
           created_at?: string | null
           id?: string
+          industry?: string | null
           logo_url?: string | null
           name?: string
+          plan?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -735,7 +741,7 @@ export type Database = {
           full_name: string
           id: string
           is_active: boolean | null
-          organization_id: string
+          organization_id: string | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           status: Database["public"]["Enums"]["agent_status"]
@@ -747,7 +753,7 @@ export type Database = {
           full_name: string
           id: string
           is_active?: boolean | null
-          organization_id: string
+          organization_id?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["agent_status"]
@@ -759,7 +765,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_active?: boolean | null
-          organization_id?: string
+          organization_id?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["agent_status"]

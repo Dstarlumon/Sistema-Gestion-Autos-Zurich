@@ -62,6 +62,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // --- Onboarding route: allow authenticated users without org ---
+  // The (app) layout handles the redirect TO /onboarding when org is missing.
+  // Here we just let /onboarding through without role-based checks.
+  if (user && request.nextUrl.pathname.startsWith('/onboarding')) {
+    return supabaseResponse
+  }
+
   // --- Role-based route protection for authenticated users ---
   if (user) {
     const pathname = request.nextUrl.pathname

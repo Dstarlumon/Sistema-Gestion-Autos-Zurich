@@ -34,6 +34,19 @@ export async function createUser(data: {
 
   if (error) throw new Error(error.message)
 
+  // Inherit coordinator's organization_id
+  const { data: coordProfile } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', user.id)
+    .single()
+
+  if (coordProfile?.organization_id && newUser.user) {
+    await admin.from('profiles')
+      .update({ organization_id: coordProfile.organization_id })
+      .eq('id', newUser.user.id)
+  }
+
   // Update the profile role (trigger creates it as 'agente', we may need to promote)
   if (data.role !== 'agente' && newUser.user) {
     await admin
