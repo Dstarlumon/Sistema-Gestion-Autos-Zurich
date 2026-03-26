@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, LayoutGroup } from 'motion/react'
@@ -130,10 +131,12 @@ function SidebarContent({
     <div className="flex flex-col h-full bg-linear-to-b from-[#222831] to-[#2d333f] overflow-hidden">
       {/* Logo area */}
       <div className="flex items-center gap-3 px-4 h-14 shrink-0">
-        <img
+        <Image
           src="/images/bmg-plus-icon.svg"
           alt="BMG+"
-          className="w-8 h-8 rounded-lg shrink-0"
+          width={32}
+          height={32}
+          className="rounded-lg shrink-0"
         />
         {!isCollapsed && (
           <motion.div
@@ -229,10 +232,13 @@ function SidebarContent({
             {/* Avatar */}
             <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#fa5058] to-[#66cfd0] flex items-center justify-center shrink-0">
               {user.avatar_url ? (
-                <img
+                <Image
                   src={user.avatar_url}
                   alt={user.full_name}
-                  className="w-8 h-8 rounded-full object-cover"
+                  width={32}
+                  height={32}
+                  className="rounded-full object-cover"
+                  unoptimized
                 />
               ) : (
                 <span className="text-white text-xs font-semibold">

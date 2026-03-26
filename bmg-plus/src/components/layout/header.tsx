@@ -12,6 +12,7 @@ import {
   LogOut,
   Check,
 } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
@@ -377,10 +378,13 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
           >
             <div className="w-7 h-7 rounded-full bg-linear-to-br from-[#fa5058] to-[#66cfd0] flex items-center justify-center shrink-0">
               {user?.avatar_url ? (
-                <img
+                <Image
                   src={user.avatar_url}
                   alt={user?.full_name ?? ''}
-                  className="w-7 h-7 rounded-full object-cover"
+                  width={28}
+                  height={28}
+                  className="rounded-full object-cover"
+                  unoptimized
                 />
               ) : (
                 <span className="text-white text-[10px] font-semibold">
