@@ -19,13 +19,39 @@ export default function LoginPage() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
 
+  const [isResetting, setIsResetting] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState(false)
+
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  })
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  })
+  } = form
+
+  const handleResetPassword = async () => {
+    const email = form.getValues('email')
+    if (!email) {
+      setError('Ingresa tu email primero')
+      return
+    }
+    setIsResetting(true)
+    setResetSuccess(false)
+    const supabase = createClient()
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    })
+    if (resetError) {
+      setError(resetError.message)
+    } else {
+      setError(null)
+      setResetSuccess(true)
+    }
+    setIsResetting(false)
+  }
 
   async function onSubmit(data: LoginFormData) {
     setError(null)
@@ -103,10 +129,12 @@ export default function LoginPage() {
               </label>
               <button
                 type="button"
-                className="text-[#66cfd0] text-xs hover:text-[#66cfd0]/80 transition-colors"
+                onClick={handleResetPassword}
+                disabled={isResetting}
+                className="text-[#66cfd0] text-xs hover:text-[#66cfd0]/80 transition-colors disabled:opacity-50"
                 tabIndex={-1}
               >
-                Reset Access
+                {isResetting ? 'Sending...' : 'Reset Access'}
               </button>
             </div>
             <div className="relative">
@@ -143,6 +171,15 @@ export default function LoginPage() {
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
               <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Reset success message */}
+          {resetSuccess && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-4 py-3">
+              <p className="text-emerald-400 text-sm">
+                Se envio un email de recuperacion. Revisa tu bandeja de entrada.
+              </p>
             </div>
           )}
 

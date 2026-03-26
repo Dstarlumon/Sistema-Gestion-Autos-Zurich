@@ -269,6 +269,7 @@ export type Database = {
           name: string
           organization_id: string
           slug: string
+          updated_at: string | null
         }
         Insert: {
           color?: string | null
@@ -279,6 +280,7 @@ export type Database = {
           name: string
           organization_id: string
           slug: string
+          updated_at?: string | null
         }
         Update: {
           color?: string | null
@@ -289,6 +291,7 @@ export type Database = {
           name?: string
           organization_id?: string
           slug?: string
+          updated_at?: string | null
         }
         Relationships: [
           {

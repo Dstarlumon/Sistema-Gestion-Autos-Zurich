@@ -2,6 +2,14 @@
 
 import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 export interface Column<T> {
   key: string
@@ -28,13 +36,13 @@ interface DataTableProps<T> {
 
 function SkeletonRow({ cols }: { cols: number }) {
   return (
-    <tr>
+    <TableRow>
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
+        <TableCell key={i} className="px-4 py-3">
           <div className="h-4 rounded bg-surface-container animate-pulse" />
-        </td>
+        </TableCell>
       ))}
-    </tr>
+    </TableRow>
   )
 }
 
@@ -79,93 +87,91 @@ export function DataTable<T extends Record<string, unknown>>({
 
   return (
     <div className="w-full">
-      {/* Responsive scroll wrapper */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px]">
-          {/* Header */}
-          <thead>
-            <tr>
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={cn(
-                    'text-left px-4 py-3 text-label-sm text-on-surface-variant',
-                    col.sortable && 'cursor-pointer select-none',
-                    col.className,
+      {/* Table */}
+      <Table className="min-w-[600px]">
+        {/* Header */}
+        <TableHeader>
+          <TableRow>
+            {columns.map((col) => (
+              <TableHead
+                key={col.key}
+                className={cn(
+                  'text-left px-4 py-3 text-label-sm text-on-surface-variant',
+                  col.sortable && 'cursor-pointer select-none',
+                  col.className,
+                )}
+                onClick={() => col.sortable && onSort?.(col.key)}
+              >
+                <span className="inline-flex items-center">
+                  {col.header}
+                  {col.sortable && (
+                    <SortIndicator
+                      active={sortBy === col.key}
+                      direction={sortBy === col.key ? sortDir : undefined}
+                    />
                   )}
-                  onClick={() => col.sortable && onSort?.(col.key)}
-                >
-                  <span className="inline-flex items-center">
-                    {col.header}
-                    {col.sortable && (
-                      <SortIndicator
-                        active={sortBy === col.key}
-                        direction={sortBy === col.key ? sortDir : undefined}
-                      />
+                </span>
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+
+        {/* Body */}
+        <TableBody>
+          {/* Loading skeleton */}
+          {isLoading &&
+            Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonRow key={`skeleton-${i}`} cols={columns.length} />
+            ))}
+
+          {/* Empty state */}
+          {!isLoading && data.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={columns.length}
+                className="text-center py-16 text-body-md text-on-surface-variant"
+              >
+                {emptyMessage}
+              </TableCell>
+            </TableRow>
+          )}
+
+          {/* Data rows */}
+          {!isLoading &&
+            data.map((row, rowIndex) => (
+              <motion.tr
+                key={(row.id as string | number) ?? rowIndex}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.2,
+                  delay: rowIndex * 0.02,
+                  ease: 'easeOut',
+                }}
+                onClick={() => onRowClick?.(row)}
+                className={cn(
+                  'transition-colors duration-150',
+                  'hover:bg-surface-container-low',
+                  onRowClick && 'cursor-pointer',
+                )}
+              >
+                {columns.map((col) => (
+                  <TableCell
+                    key={col.key}
+                    className={cn(
+                      'px-4 py-3 text-body-md text-on-surface',
+                      col.className,
                     )}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          {/* Body */}
-          <tbody>
-            {/* Loading skeleton */}
-            {isLoading &&
-              Array.from({ length: 6 }).map((_, i) => (
-                <SkeletonRow key={`skeleton-${i}`} cols={columns.length} />
-              ))}
-
-            {/* Empty state */}
-            {!isLoading && data.length === 0 && (
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="text-center py-16 text-body-md text-on-surface-variant"
-                >
-                  {emptyMessage}
-                </td>
-              </tr>
-            )}
-
-            {/* Data rows */}
-            {!isLoading &&
-              data.map((row, rowIndex) => (
-                <motion.tr
-                  key={(row.id as string | number) ?? rowIndex}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.2,
-                    delay: rowIndex * 0.02,
-                    ease: 'easeOut',
-                  }}
-                  onClick={() => onRowClick?.(row)}
-                  className={cn(
-                    'transition-colors duration-150',
-                    'hover:bg-surface-container-low',
-                    onRowClick && 'cursor-pointer',
-                  )}
-                >
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className={cn(
-                        'px-4 py-3 text-body-md text-on-surface',
-                        col.className,
-                      )}
-                    >
-                      {col.render
-                        ? col.render(row)
-                        : (row[col.key] as React.ReactNode) ?? '\u2014'}
-                    </td>
-                  ))}
-                </motion.tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+                  >
+                    {col.render
+                      ? col.render(row)
+                      : (row[col.key] as React.ReactNode) ?? '\u2014'}
+                  </TableCell>
+                ))}
+              </motion.tr>
+            ))}
+        </TableBody>
+      </Table>
 
       {/* Pagination */}
       {showPagination && (

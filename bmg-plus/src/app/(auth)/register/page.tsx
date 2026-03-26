@@ -7,8 +7,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
-
-const INVITE_CODE = process.env.NEXT_PUBLIC_REGISTRATION_INVITE_CODE
+import { verifyInviteCode } from './actions'
 
 const registerSchema = z
   .object({
@@ -42,10 +41,13 @@ export default function RegisterPage() {
     setError(null)
     setSuccess(false)
 
-    // Validate invite code if one is configured
-    if (INVITE_CODE && data.inviteCode !== INVITE_CODE) {
-      setError('Invalid invite code. Contact your administrator.')
-      return
+    // Validate invite code server-side
+    if (data.inviteCode != null) {
+      const isValid = await verifyInviteCode(data.inviteCode)
+      if (!isValid) {
+        setError('Invalid invite code. Contact your administrator.')
+        return
+      }
     }
 
     const supabase = createClient()
@@ -260,37 +262,35 @@ export default function RegisterPage() {
             </div>
 
             {/* Invite code field */}
-            {INVITE_CODE && (
-              <div className="space-y-1.5">
-                <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
-                  Invite Code
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-white/30"
-                    >
-                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Enter invite code"
-                    autoComplete="off"
-                    {...register('inviteCode')}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
-                  />
+            <div className="space-y-1.5">
+              <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
+                Invite Code
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-white/30"
+                  >
+                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                  </svg>
                 </div>
+                <input
+                  type="text"
+                  placeholder="Enter invite code"
+                  autoComplete="off"
+                  {...register('inviteCode')}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white/90 placeholder:text-white/25 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors"
+                />
               </div>
-            )}
+            </div>
 
             {/* Error message */}
             {error && (
