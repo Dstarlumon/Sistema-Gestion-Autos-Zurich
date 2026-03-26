@@ -88,6 +88,7 @@ export default function UsuariosPage() {
 
       {/* Edit user dialog */}
       <EditUserDialog
+        key={editingUser?.id ?? ''}
         user={editingUser}
         onClose={() => setEditingUser(null)}
       />
@@ -491,22 +492,12 @@ function EditUserDialog({
   const supabase = createClient()
   const queryClient = useQueryClient()
 
-  const [nombre, setNombre] = useState('')
-  const [role, setRole] = useState<Role>('agente')
-  const [phone, setPhone] = useState('')
+  const [nombre, setNombre] = useState(user?.full_name ?? '')
+  const [role, setRole] = useState<Role>(user?.role ?? 'agente')
+  const [phone, setPhone] = useState(user?.phone ?? '')
 
-  // Sync state when user changes
   const open = user !== null
   const currentUser = user
-
-  // Reset form when user changes
-  useMemo(() => {
-    if (currentUser) {
-      setNombre(currentUser.full_name)
-      setRole(currentUser.role)
-      setPhone(currentUser.phone || '')
-    }
-  }, [currentUser])
 
   const updateMutation = useMutation({
     mutationFn: async () => {

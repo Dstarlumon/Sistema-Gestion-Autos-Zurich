@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useTipificaciones } from '@/lib/queries/use-tipificaciones'
 import {
   Select,
@@ -39,9 +39,9 @@ export function TipificacionCascade({
 }: TipificacionCascadeProps) {
   const { data: tipificaciones = [], isLoading } = useTipificaciones(campaignId)
 
-  const [level1Id, setLevel1Id] = useState<string | null>(null)
-  const [level2Id, setLevel2Id] = useState<string | null>(null)
-  const [level3Id, setLevel3Id] = useState<string | null>(null)
+  const [localLevel1Id, setLevel1Id] = useState<string | null>(null)
+  const [localLevel2Id, setLevel2Id] = useState<string | null>(null)
+  const [localLevel3Id, setLevel3Id] = useState<string | null>(null)
 
   // Build the tree structure from the flat array
   const { roots, childrenMap } = useMemo(() => {
@@ -61,6 +61,30 @@ export function TipificacionCascade({
     return { roots, childrenMap }
   }, [tipificaciones])
 
+  // Derive level IDs from the controlled `value` prop (no effect needed)
+  const derivedLevels = useMemo(() => {
+    if (!value || tipificaciones.length === 0) return null
+    const selected = (tipificaciones as TipificacionNode[]).find((t) => t.id === value)
+    if (!selected) return null
+
+    if (selected.level === 1) {
+      return { l1: selected.id, l2: null, l3: null }
+    } else if (selected.level === 2) {
+      return { l1: selected.parent_id, l2: selected.id, l3: null }
+    } else if (selected.level === 3) {
+      const parent = (tipificaciones as TipificacionNode[]).find(
+        (t) => t.id === selected.parent_id
+      )
+      return { l1: parent?.parent_id ?? null, l2: selected.parent_id, l3: selected.id }
+    }
+    return null
+  }, [value, tipificaciones])
+
+  // Use derived levels when a controlled value is set, otherwise use local state
+  const level1Id = derivedLevels?.l1 ?? localLevel1Id
+  const level2Id = derivedLevels?.l2 ?? localLevel2Id
+  const level3Id = derivedLevels?.l3 ?? localLevel3Id
+
   // Level 2 options based on level1 selection
   const level2Options = useMemo(() => {
     if (!level1Id) return []
@@ -72,33 +96,6 @@ export function TipificacionCascade({
     if (!level2Id) return []
     return childrenMap.get(level2Id) || []
   }, [level2Id, childrenMap])
-
-  // Sync external value to internal state
-  useEffect(() => {
-    if (!value || tipificaciones.length === 0) return
-
-    const selected = (tipificaciones as TipificacionNode[]).find(
-      (t) => t.id === value
-    )
-    if (!selected) return
-
-    if (selected.level === 1) {
-      setLevel1Id(selected.id)
-      setLevel2Id(null)
-      setLevel3Id(null)
-    } else if (selected.level === 2) {
-      setLevel1Id(selected.parent_id)
-      setLevel2Id(selected.id)
-      setLevel3Id(null)
-    } else if (selected.level === 3) {
-      const parent = (tipificaciones as TipificacionNode[]).find(
-        (t) => t.id === selected.parent_id
-      )
-      setLevel1Id(parent?.parent_id ?? null)
-      setLevel2Id(selected.parent_id)
-      setLevel3Id(selected.id)
-    }
-  }, [value, tipificaciones])
 
   // Get the root category name for the current selection
   const getRootCategoryName = useCallback(

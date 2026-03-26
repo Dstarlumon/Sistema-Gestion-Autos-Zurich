@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
 import { KpiCard } from '@/components/charts/kpi-card'
@@ -190,9 +190,9 @@ function CallKpiRow() {
 
 function QueuedCallsSection() {
   const supabase = createClient()
-  const [queuedCalls, setQueuedCalls] = useState<CallRow[]>([])
+  const qc = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data: queuedCalls = [], isLoading } = useQuery({
     queryKey: ['queued-calls'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -209,31 +209,29 @@ function QueuedCallsSection() {
     refetchInterval: 5000,
   })
 
-  useEffect(() => {
-    if (data) setQueuedCalls(data)
-  }, [data])
-
-  // Realtime updates for ringing calls
+  // Realtime updates — patch the query cache directly (no local state sync needed)
   const handleRealtimeQueued = useCallback(
     (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
       const row = payload.new as unknown as CallRow | undefined
       const oldRow = payload.old as unknown as CallRow | undefined
 
-      if (payload.eventType === 'INSERT' && row?.status === 'ringing') {
-        setQueuedCalls((prev) => [...prev, row])
-      } else if (payload.eventType === 'UPDATE') {
-        if (row?.status !== 'ringing') {
-          setQueuedCalls((prev) => prev.filter((c) => c.id !== row?.id))
-        } else {
-          setQueuedCalls((prev) =>
-            prev.map((c) => (c.id === row?.id ? { ...c, ...row } : c))
-          )
+      qc.setQueryData<CallRow[]>(['queued-calls'], (prev = []) => {
+        if (payload.eventType === 'INSERT' && row?.status === 'ringing') {
+          return [...prev, row]
         }
-      } else if (payload.eventType === 'DELETE' && oldRow) {
-        setQueuedCalls((prev) => prev.filter((c) => c.id !== oldRow.id))
-      }
+        if (payload.eventType === 'UPDATE') {
+          if (row?.status !== 'ringing') {
+            return prev.filter((c) => c.id !== row?.id)
+          }
+          return prev.map((c) => (c.id === row?.id ? { ...c, ...row } : c))
+        }
+        if (payload.eventType === 'DELETE' && oldRow) {
+          return prev.filter((c) => c.id !== oldRow.id)
+        }
+        return prev
+      })
     },
-    []
+    [qc]
   )
 
   useRealtime({
@@ -313,9 +311,9 @@ function QueuedCallsSection() {
 
 function ActiveCallsSection() {
   const supabase = createClient()
-  const [activeCalls, setActiveCalls] = useState<CallRow[]>([])
+  const qc = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data: activeCalls = [], isLoading } = useQuery({
     queryKey: ['active-calls'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -332,32 +330,29 @@ function ActiveCallsSection() {
     refetchInterval: 10000,
   })
 
-  useEffect(() => {
-    if (data) setActiveCalls(data)
-  }, [data])
-
-  // Realtime updates on calls table
+  // Realtime updates — patch the query cache directly
   const handleRealtimeCall = useCallback(
     (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
       const row = payload.new as unknown as CallRow | undefined
       const oldRow = payload.old as unknown as CallRow | undefined
 
-      if (payload.eventType === 'INSERT' && row?.status === 'active') {
-        setActiveCalls((prev) => [row, ...prev])
-      } else if (payload.eventType === 'UPDATE') {
-        if (row?.status !== 'active') {
-          // Call ended, remove from list
-          setActiveCalls((prev) => prev.filter((c) => c.id !== row?.id))
-        } else {
-          setActiveCalls((prev) =>
-            prev.map((c) => (c.id === row?.id ? { ...c, ...row } : c))
-          )
+      qc.setQueryData<CallRow[]>(['active-calls'], (prev = []) => {
+        if (payload.eventType === 'INSERT' && row?.status === 'active') {
+          return [row, ...prev]
         }
-      } else if (payload.eventType === 'DELETE' && oldRow) {
-        setActiveCalls((prev) => prev.filter((c) => c.id !== oldRow.id))
-      }
+        if (payload.eventType === 'UPDATE') {
+          if (row?.status !== 'active') {
+            return prev.filter((c) => c.id !== row?.id)
+          }
+          return prev.map((c) => (c.id === row?.id ? { ...c, ...row } : c))
+        }
+        if (payload.eventType === 'DELETE' && oldRow) {
+          return prev.filter((c) => c.id !== oldRow.id)
+        }
+        return prev
+      })
     },
-    []
+    [qc]
   )
 
   useRealtime({

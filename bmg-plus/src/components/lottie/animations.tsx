@@ -128,6 +128,15 @@ export function ErrorAnimation({ message = 'Algo salio mal', onRetry }: { messag
   )
 }
 
+// Pre-computed confetti directions (deterministic, avoids Math.random in render)
+const CONFETTI_DIRECTIONS = [
+  { x: -120, y: 80 }, { x: 150, y: -130 }, { x: -60, y: -170 }, { x: 180, y: 40 },
+  { x: -190, y: -60 }, { x: 100, y: 160 }, { x: -40, y: -140 }, { x: 70, y: 190 },
+  { x: -160, y: 110 }, { x: 130, y: -80 }, { x: -90, y: -50 }, { x: 50, y: 170 },
+  { x: -170, y: -120 }, { x: 110, y: 60 }, { x: -30, y: 140 }, { x: 160, y: -100 },
+  { x: -140, y: 30 }, { x: 80, y: -160 }, { x: -100, y: 90 }, { x: 140, y: -40 },
+]
+
 // Celebration (first sale, goal reached)
 export function CelebrationAnimation() {
   return (
@@ -146,8 +155,8 @@ export function CelebrationAnimation() {
             x: 0, y: 0, scale: 0, opacity: 1,
           }}
           animate={{
-            x: (Math.random() - 0.5) * 400,
-            y: (Math.random() - 0.5) * 400,
+            x: CONFETTI_DIRECTIONS[i].x,
+            y: CONFETTI_DIRECTIONS[i].y,
             scale: [0, 1, 0],
             opacity: [1, 1, 0],
           }}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
@@ -641,6 +641,18 @@ function SupervisorView() {
 // Supervisor Agent Card
 // ---------------------------------------------------------------------------
 
+/** Returns Date.now() and re-renders every `intervalMs` (default 30 s). */
+function useNow(intervalMs = 30_000) {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      const id = setInterval(onStoreChange, intervalMs)
+      return () => clearInterval(id)
+    },
+    () => Date.now(),
+    () => Date.now(),
+  )
+}
+
 /** Max pause duration in minutes before abuse highlighting */
 const PAUSE_ABUSE_THRESHOLD_MINUTES = 60
 
@@ -655,11 +667,12 @@ function SupervisorAgentCard({
     ? PAUSE_OPTIONS.find((p) => p.type === agent.activePause?.pause_type)
     : null
 
-  // Check if agent's pause exceeds the threshold
+  // Check if agent's pause exceeds the threshold (re-evaluated every 30 s via useNow)
+  const now = useNow()
   const isAbuse = (() => {
     if (agent.status !== 'pausa' || !agent.activePause?.started_at) return false
     const start = new Date(agent.activePause.started_at).getTime()
-    const elapsedMinutes = (Date.now() - start) / 60_000
+    const elapsedMinutes = (now - start) / 60_000
     return elapsedMinutes > PAUSE_ABUSE_THRESHOLD_MINUTES
   })()
 

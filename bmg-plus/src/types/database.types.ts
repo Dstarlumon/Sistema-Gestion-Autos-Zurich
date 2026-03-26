@@ -49,6 +49,53 @@ export type Database = {
           },
         ]
       }
+      agent_scorecards: {
+        Row: {
+          agent_id: string
+          calls_count: number
+          conversion_rate: number
+          created_at: string | null
+          date: string
+          gestiones_count: number
+          id: string
+          sales_count: number
+          total_prima: number
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          calls_count?: number
+          conversion_rate?: number
+          created_at?: string | null
+          date: string
+          gestiones_count?: number
+          id?: string
+          sales_count?: number
+          total_prima?: number
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          calls_count?: number
+          conversion_rate?: number
+          created_at?: string | null
+          date?: string
+          gestiones_count?: number
+          id?: string
+          sales_count?: number
+          total_prima?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_scorecards_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           created_at: string | null
@@ -1170,6 +1217,13 @@ export type Database = {
           },
         ]
       }
+      organization_config: {
+        Row: {
+          key: string | null
+          value: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_tipificacion_root: {
@@ -1182,6 +1236,7 @@ export type Database = {
       get_user_campaigns: { Args: never; Returns: string[] }
       get_user_org: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }
+      increment_unread: { Args: { conv_id: string }; Returns: undefined }
     }
     Enums: {
       agent_status: "disponible" | "en_llamada" | "pausa" | "offline"

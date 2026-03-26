@@ -1,9 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useCallback, useSyncExternalStore } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { useRole } from '@/hooks/use-role'
+
+const ONBOARDING_KEY = 'bmg-onboarding-complete'
+let onboardingListeners: Array<() => void> = []
+function emitOnboardingChange() { for (const l of onboardingListeners) l() }
+function subscribeOnboarding(cb: () => void) {
+  onboardingListeners = [...onboardingListeners, cb]
+  return () => { onboardingListeners = onboardingListeners.filter((l) => l !== cb) }
+}
+function getOnboardingSeen() { return localStorage.getItem(ONBOARDING_KEY) === 'true' }
+function getOnboardingSeenServer() { return true }
 
 const STEPS = [
   {
@@ -41,18 +51,13 @@ const STEPS = [
 export function OnboardingTour() {
   const { isCoordinador } = useRole()
   const [step, setStep] = useState(0)
-  const [show, setShow] = useState(false)
+  const seen = useSyncExternalStore(subscribeOnboarding, getOnboardingSeen, getOnboardingSeenServer)
+  const show = isCoordinador && !seen
 
-  useEffect(() => {
-    if (!isCoordinador) return
-    const seen = localStorage.getItem('bmg-onboarding-complete')
-    if (!seen) setShow(true)
-  }, [isCoordinador])
-
-  const complete = () => {
-    localStorage.setItem('bmg-onboarding-complete', 'true')
-    setShow(false)
-  }
+  const complete = useCallback(() => {
+    localStorage.setItem(ONBOARDING_KEY, 'true')
+    emitOnboardingChange()
+  }, [])
 
   if (!show) return null
 

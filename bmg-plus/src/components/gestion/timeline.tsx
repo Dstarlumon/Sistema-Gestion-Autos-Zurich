@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useGestionesByLead } from '@/lib/queries/use-gestiones'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -100,45 +101,32 @@ function getRootCategory(
 
 /** Hook to fetch the full tipificacion_tree for parent chain traversal */
 function useTipificacionLookup(gestiones: Record<string, unknown>[] | undefined) {
-  const [lookup, setLookup] = useState<Map<string, TipificacionNode>>(new Map())
+  const hasTipIds = useMemo(() => {
+    if (!gestiones || gestiones.length === 0) return false
+    return gestiones.some((g) => {
+      const tip = g.tipificacion_tree as TipificacionNode | null
+      return !!tip?.id
+    })
+  }, [gestiones])
 
-  useEffect(() => {
-    if (!gestiones || gestiones.length === 0) {
-      setLookup(new Map())
-      return
-    }
-
-    // Collect all tipificacion IDs from gestiones (including parents we need to fetch)
-    const tipIds = gestiones
-      .map((g) => {
-        const tip = g.tipificacion_tree as TipificacionNode | null
-        return tip?.id
-      })
-      .filter(Boolean) as string[]
-
-    if (tipIds.length === 0) {
-      setLookup(new Map())
-      return
-    }
-
-    const supabase = createClient()
-
-    // Fetch all tipificacion_tree nodes so we can resolve parent chains
-    const fetchTree = async () => {
+  const { data: lookup = new Map<string, TipificacionNode>() } = useQuery({
+    queryKey: ['tipificacion-tree-lookup'],
+    queryFn: async () => {
+      const supabase = createClient()
       const { data } = await supabase
         .from('tipificacion_tree')
         .select('id, name, parent_id, level')
+      const map = new Map<string, TipificacionNode>()
       if (data) {
-        const map = new Map<string, TipificacionNode>()
         for (const node of data) {
           map.set(node.id, node)
         }
-        setLookup(map)
       }
-    }
-
-    fetchTree()
-  }, [gestiones])
+      return map
+    },
+    enabled: hasTipIds,
+    staleTime: 5 * 60 * 1000,
+  })
 
   return lookup
 }

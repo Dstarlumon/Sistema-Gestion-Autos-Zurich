@@ -1,22 +1,35 @@
 'use client'
 
-import { useRef, useMemo } from 'react'
+import { useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+
+/** Seeded pseudo-random generator (mulberry32) for deterministic particle positions. */
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function makeParticlePositions(count: number): Float32Array {
+  const rng = mulberry32(42)
+  const pos = new Float32Array(count * 3)
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = (rng() - 0.5) * 10
+    pos[i * 3 + 1] = (rng() - 0.5) * 10
+    pos[i * 3 + 2] = (rng() - 0.5) * 10
+  }
+  return pos
+}
 
 function Particles({ count = 2000, sharedPositions }: { count?: number; sharedPositions?: Float32Array }) {
   const mesh = useRef<THREE.Points>(null)
 
-  const positions = useMemo(() => {
-    if (sharedPositions) return sharedPositions
-    const pos = new Float32Array(count * 3)
-    for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 10
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 10
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 10
-    }
-    return pos
-  }, [count, sharedPositions])
+  // Lazy-init: computed once and never changes (stable across re-renders)
+  const [positions] = useState(() => sharedPositions ?? makeParticlePositions(count))
 
   useFrame(({ clock, pointer }) => {
     if (!mesh.current) return
@@ -106,15 +119,7 @@ function FloatingOrb({ position, color, scale = 1, opacity = 0.08 }: { position:
 }
 
 function ParticleNetwork({ count = 2000 }) {
-  const positions = useMemo(() => {
-    const pos = new Float32Array(count * 3)
-    for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 10
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 10
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 10
-    }
-    return pos
-  }, [count])
+  const [positions] = useState(() => makeParticlePositions(count))
 
   return (
     <>

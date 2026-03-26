@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
+
+function verifySignature(received: string | null, secret: string): boolean {
+  if (!received) return false
+  try {
+    return timingSafeEqual(Buffer.from(received), Buffer.from(secret))
+  } catch {
+    return false // length mismatch
+  }
+}
 
 export async function POST(request: NextRequest) {
   // Verify webhook secret if configured
   const secret = process.env.CALLBELL_WEBHOOK_SECRET
   if (secret) {
     const signature = request.headers.get('x-callbell-signature')
-    if (!signature || signature !== secret) {
+    if (!verifySignature(signature, secret)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
   }

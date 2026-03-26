@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
@@ -73,14 +73,13 @@ export default function ConfiguracionPage() {
 // ---------------------------------------------------------------------------
 
 function ConfigSections() {
-  const supabase = createClient()
-  const queryClient = useQueryClient()
   const currentUser = useAuthStore((s) => s.user)
 
-  const { data: org, isLoading } = useQuery({
+  const { data: org, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ['admin-organization'],
     queryFn: async () => {
       if (!currentUser?.organization_id) return null
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('organizations')
         .select('*')
@@ -92,40 +91,60 @@ function ConfigSections() {
     enabled: !!currentUser?.organization_id,
   })
 
-  // Organization state
-  const [orgName, setOrgName] = useState('')
-  const [logoUrl, setLogoUrl] = useState('')
+  if (isLoading) {
+    return (
+      <div className="space-y-5">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-48 rounded-xl" />
+        ))}
+      </div>
+    )
+  }
+
+  if (!org) return null
+
+  return <ConfigForm key={`${org.id}-${dataUpdatedAt}`} org={org} />
+}
+
+/** Flash `showSaved` for 2 s then auto-clear — driven by event handlers, not effects. */
+function useSavedFlash() {
+  const [showSaved, setShowSaved] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const flash = useCallback(() => {
+    setShowSaved(true)
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setShowSaved(false), 2000)
+  }, [])
+  return { showSaved, flash }
+}
+
+function ConfigForm({ org }: { org: Organization }) {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+
+  const config = org.config || {}
+
+  // Organization state — initialized from fetched data
+  const [orgName, setOrgName] = useState(org.name || '')
+  const [logoUrl, setLogoUrl] = useState(org.logo_url || '')
 
   // Operation state
-  const [timezone, setTimezone] = useState('America/Bogota')
-  const [currency, setCurrency] = useState('COP')
-  const [maxPause, setMaxPause] = useState(60)
-  const [slaHours, setSlaHours] = useState(24)
-  const [dailyGoal, setDailyGoal] = useState(30)
+  const [timezone, setTimezone] = useState(config.timezone || 'America/Bogota')
+  const [currency, setCurrency] = useState(config.currency || 'COP')
+  const [maxPause, setMaxPause] = useState(config.max_pause_minutes || 60)
+  const [slaHours, setSlaHours] = useState(config.sla_max_hours || 24)
+  const [dailyGoal, setDailyGoal] = useState(config.daily_goal || 30)
 
   // Integration state
-  const [vitxiUrl, setVitxiUrl] = useState('')
-  const [vitxiKey, setVitxiKey] = useState('')
-  const [vitxiSecret, setVitxiSecret] = useState('')
-  const [callbellKey, setCallbellKey] = useState('')
+  const [vitxiUrl, setVitxiUrl] = useState(config.vitxi_api_url || '')
+  const [vitxiKey, setVitxiKey] = useState(config.vitxi_api_key || '')
+  const [vitxiSecret, setVitxiSecret] = useState(config.vitxi_webhook_secret || '')
+  const [callbellKey, setCallbellKey] = useState(config.callbell_api_key || '')
 
-  // Sync state from fetched data
-  useEffect(() => {
-    if (org) {
-      setOrgName(org.name || '')
-      setLogoUrl(org.logo_url || '')
-      const config = org.config || {}
-      setTimezone(config.timezone || 'America/Bogota')
-      setCurrency(config.currency || 'COP')
-      setMaxPause(config.max_pause_minutes || 60)
-      setSlaHours(config.sla_max_hours || 24)
-      setDailyGoal(config.daily_goal || 30)
-      setVitxiUrl(config.vitxi_api_url || '')
-      setVitxiKey(config.vitxi_api_key || '')
-      setVitxiSecret(config.vitxi_webhook_secret || '')
-      setCallbellKey(config.callbell_api_key || '')
-    }
-  }, [org])
+  // Saved-flash indicators — driven from mutation onSuccess, not useEffect
+  const orgFlash = useSavedFlash()
+  const operationFlash = useSavedFlash()
+  const integrationFlash = useSavedFlash()
 
   // Save organization info mutation
   const saveOrgMutation = useMutation({
@@ -142,6 +161,7 @@ function ConfigSections() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-organization'] })
+      orgFlash.flash()
     },
   })
 
@@ -166,6 +186,7 @@ function ConfigSections() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-organization'] })
+      operationFlash.flash()
     },
   })
 
@@ -189,6 +210,7 @@ function ConfigSections() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-organization'] })
+      integrationFlash.flash()
     },
   })
 
@@ -212,16 +234,6 @@ function ConfigSections() {
     setTimeout(() => setVitxiTestResult('idle'), 3000)
   }, [vitxiUrl, vitxiKey])
 
-  if (isLoading) {
-    return (
-      <div className="space-y-5">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-48 rounded-xl" />
-        ))}
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-5">
       {/* Section 1: Organization */}
@@ -234,7 +246,7 @@ function ConfigSections() {
           title="Organizacion"
           description="Datos basicos de tu empresa"
           isSaving={saveOrgMutation.isPending}
-          isSuccess={saveOrgMutation.isSuccess}
+          showSaved={orgFlash.showSaved}
           onSave={() => saveOrgMutation.mutate()}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -292,7 +304,7 @@ function ConfigSections() {
           title="Operacion"
           description="Configuracion de zona horaria, SLA y metas"
           isSaving={saveOperationMutation.isPending}
-          isSuccess={saveOperationMutation.isSuccess}
+          showSaved={operationFlash.showSaved}
           onSave={() => saveOperationMutation.mutate()}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -388,7 +400,7 @@ function ConfigSections() {
           title="Integraciones"
           description="Conexion con servicios externos"
           isSaving={saveIntegrationMutation.isPending}
-          isSuccess={saveIntegrationMutation.isSuccess}
+          showSaved={integrationFlash.showSaved}
           onSave={() => saveIntegrationMutation.mutate()}
         >
           {/* Vitxi */}
@@ -530,27 +542,16 @@ function ConfigCard({
   description,
   children,
   isSaving,
-  isSuccess,
+  showSaved,
   onSave,
 }: {
   title: string
   description: string
   children: React.ReactNode
   isSaving: boolean
-  isSuccess: boolean
+  showSaved: boolean
   onSave: () => void
 }) {
-  const [showSaved, setShowSaved] = useState(false)
-
-  // Show "Guardado" briefly after success
-  useEffect(() => {
-    if (isSuccess) {
-      setShowSaved(true)
-      const timer = setTimeout(() => setShowSaved(false), 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [isSuccess])
-
   return (
     <div className="bg-surface-container-lowest rounded-xl shadow-ambient overflow-hidden">
       <div className="p-5">

@@ -138,11 +138,12 @@ export function GestionForm({
   const schemaRef = useRef(activeSchema)
   schemaRef.current = activeSchema
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const dynamicResolver = useCallback(async (values: any, context: any, options: any) => {
     const resolver = zodResolver(schemaRef.current as any)
     return resolver(values, context, options)
   }, [])
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   const {
     register,

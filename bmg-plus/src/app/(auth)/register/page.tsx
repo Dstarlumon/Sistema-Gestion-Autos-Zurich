@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -76,7 +77,7 @@ export default function RegisterPage() {
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-10 w-full max-w-md">
         {/* Branding */}
         <div className="text-center mb-8">
-          <img src="/images/bmg-plus-icon.svg" alt="BMG+" className="w-14 h-14 rounded-xl inline-block mb-4" />
+          <Image src="/images/bmg-plus-icon.svg" alt="BMG+" width={56} height={56} className="rounded-xl inline-block mb-4" />
           <h1 className="text-2xl font-bold text-white tracking-tight">BMG+</h1>
           <p className="text-white/40 text-xs mt-1 tracking-widest uppercase">
             Deployment Request

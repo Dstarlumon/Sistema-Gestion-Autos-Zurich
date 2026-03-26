@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { cn } from '@/lib/utils'
 import {
@@ -89,21 +89,24 @@ export function DataTable<T extends Record<string, unknown>>({
     totalCount != null ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1
   const showPagination = totalCount != null && onPageChange != null
 
-  // Track previous row IDs to detect newly-added rows
-  const prevIdsRef = useRef<Set<string | number>>(new Set())
-  const newRowIds = useMemo(() => {
-    const currentIds = new Set(
-      data.map((row, i) => (row.id as string | number) ?? i)
-    )
-    const newIds = new Set<string | number>()
+  // Track previous row IDs to detect newly-added rows.
+  // Uses "adjusting state during render" pattern: compare previous vs current
+  // data during render itself, which avoids reading refs during render.
+  const [prevIds, setPrevIds] = useState<Set<string | number>>(new Set())
+  const currentIds = useMemo(
+    () => new Set(data.map((row, i) => (row.id as string | number) ?? i)),
+    [data],
+  )
+
+  let newRowIds = new Set<string | number>()
+  if (currentIds !== prevIds) {
+    const ids = new Set<string | number>()
     currentIds.forEach((id) => {
-      if (prevIdsRef.current.size > 0 && !prevIdsRef.current.has(id)) {
-        newIds.add(id)
-      }
+      if (prevIds.size > 0 && !prevIds.has(id)) ids.add(id)
     })
-    prevIdsRef.current = currentIds
-    return newIds
-  }, [data])
+    newRowIds = ids
+    setPrevIds(currentIds)
+  }
 
   // Stable key for crossfade when dataset changes (filter/sort)
   const dataKey = data.map((d) => (d as Record<string, unknown>).id ?? '').join(',')
