@@ -77,24 +77,24 @@ export function OnboardingTour() {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
-            className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl"
+            className="w-full max-w-md rounded-2xl bg-[#222831] p-8 shadow-2xl border border-white/10"
           >
             <div className="mb-2 flex items-center gap-2">
-              <span className="text-xs font-bold text-on-surface-variant">
+              <span className="text-xs font-bold text-slate-400">
                 Paso {step + 1} de {STEPS.length}
               </span>
             </div>
-            <h3 className="mb-2 text-xl font-bold text-on-surface">
+            <h3 className="mb-2 text-xl font-bold text-white">
               {current.title}
             </h3>
-            <p className="text-body-md mb-6 text-on-surface-variant">
+            <p className="text-sm mb-6 text-slate-300 leading-relaxed">
               {current.description}
             </p>
 
             <div className="flex items-center justify-between">
               <button
                 onClick={complete}
-                className="text-sm text-on-surface-variant hover:underline"
+                className="text-sm text-slate-400 hover:text-white hover:underline transition-colors"
               >
                 Saltar tour
               </button>
@@ -102,7 +102,7 @@ export function OnboardingTour() {
                 {step > 0 && (
                   <button
                     onClick={() => setStep((s) => s - 1)}
-                    className="rounded-lg bg-surface-container px-4 py-2 text-sm font-medium"
+                    className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/15 transition-colors"
                   >
                     Anterior
                   </button>
@@ -132,7 +132,7 @@ export function OnboardingTour() {
                   key={i}
                   className={cn(
                     'h-2 w-2 rounded-full',
-                    i === step ? 'bg-[#fa5058]' : 'bg-surface-container'
+                    i === step ? 'bg-[#fa5058]' : 'bg-white/20'
                   )}
                 />
               ))}
