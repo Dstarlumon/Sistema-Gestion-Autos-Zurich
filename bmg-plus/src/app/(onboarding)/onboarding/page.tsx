@@ -8,6 +8,9 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createOrganization } from './actions'
 import { LoadingAnimation } from '@/components/lottie/animations'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { HelpTooltip } from '@/components/shared/help-tooltip'
 
 /* ============================================================
    Zod schema
@@ -15,11 +18,6 @@ import { LoadingAnimation } from '@/components/lottie/animations'
 const onboardingSchema = z.object({
   name: z.string().min(2, 'Minimo 2 caracteres'),
   industry: z.string().min(1, 'Selecciona una industria'),
-  timezone: z.string(),
-  currency: z.string(),
-  sla_hours: z.number().min(1),
-  max_pause_minutes: z.number().min(1),
-  daily_goal: z.number().min(1),
   teamMembers: z.array(z.object({
     email: z.string().email('Email invalido'),
     role: z.enum(['agente', 'supervisor']),
@@ -29,67 +27,34 @@ const onboardingSchema = z.object({
 type OnboardingFormData = z.infer<typeof onboardingSchema>
 
 /* ============================================================
-   Industry options
+   Industry options (16 + Otro)
    ============================================================ */
 const INDUSTRIES = [
-  {
-    value: 'seguros',
-    icon: '🏢',
-    title: 'Seguros',
-    description: 'Campanas de seguros, cotizaciones, renovaciones',
-  },
-  {
-    value: 'telecomunicaciones',
-    icon: '📡',
-    title: 'Telecomunicaciones',
-    description: 'Servicios moviles, internet, TV',
-  },
-  {
-    value: 'financiero',
-    icon: '💳',
-    title: 'Financiero',
-    description: 'Creditos, tarjetas, cuentas bancarias',
-  },
-  {
-    value: 'salud',
-    icon: '🏥',
-    title: 'Salud',
-    description: 'EPS, medicina prepagada, citas',
-  },
-  {
-    value: 'otro',
-    icon: '📋',
-    title: 'Otro',
-    description: 'Configuracion personalizada',
-  },
+  { value: 'tecnologia', label: 'Tecnologia y Software' },
+  { value: 'financiero', label: 'Servicios Financieros / Banca' },
+  { value: 'seguros', label: 'Seguros' },
+  { value: 'salud', label: 'Salud y Farmaceutica' },
+  { value: 'telecomunicaciones', label: 'Telecomunicaciones' },
+  { value: 'educacion', label: 'Educacion' },
+  { value: 'logistica', label: 'Logistica y Transporte' },
+  { value: 'retail', label: 'Comercio / Retail / E-commerce' },
+  { value: 'energia', label: 'Energia y Petroleo' },
+  { value: 'manufactura', label: 'Manufactura e Industria' },
+  { value: 'consultoria', label: 'Consultoria y Servicios Profesionales' },
+  { value: 'marketing', label: 'Marketing y Publicidad' },
+  { value: 'gobierno', label: 'Gobierno y Sector Publico' },
+  { value: 'bpo', label: 'BPO / Contact Center' },
+  { value: 'turismo', label: 'Turismo y Hoteleria' },
+  { value: 'otro', label: 'Otro' },
 ] as const
 
-const TIMEZONES = [
-  { value: 'America/Bogota', label: 'Bogota (GMT-5)' },
-  { value: 'America/Mexico_City', label: 'Ciudad de Mexico (GMT-6)' },
-  { value: 'America/Lima', label: 'Lima (GMT-5)' },
-  { value: 'America/Santiago', label: 'Santiago (GMT-4)' },
-  { value: 'America/Buenos_Aires', label: 'Buenos Aires (GMT-3)' },
-  { value: 'America/New_York', label: 'New York (GMT-5)' },
-]
-
-const CURRENCIES = [
-  { value: 'COP', label: 'COP — Peso Colombiano' },
-  { value: 'USD', label: 'USD — Dolar Americano' },
-  { value: 'MXN', label: 'MXN — Peso Mexicano' },
-  { value: 'PEN', label: 'PEN — Sol Peruano' },
-  { value: 'CLP', label: 'CLP — Peso Chileno' },
-  { value: 'ARS', label: 'ARS — Peso Argentino' },
-]
-
 /* ============================================================
-   Stepper component
+   Stepper component (2 steps)
    ============================================================ */
 function Stepper({ currentStep }: { currentStep: number }) {
   const steps = [
     { number: 1, label: 'Organizacion' },
-    { number: 2, label: 'Configuracion' },
-    { number: 3, label: 'Equipo' },
+    { number: 2, label: 'Equipo' },
   ]
 
   return (
@@ -140,7 +105,7 @@ function Stepper({ currentStep }: { currentStep: number }) {
 }
 
 /* ============================================================
-   Step 1 — Organization
+   Step 1 — Organization (name + industry Select dropdown)
    ============================================================ */
 function StepOrganization({
   register,
@@ -151,7 +116,7 @@ function StepOrganization({
   register: ReturnType<typeof useForm<OnboardingFormData>>['register']
   errors: ReturnType<typeof useForm<OnboardingFormData>>['formState']['errors']
   selectedIndustry: string
-  onSelectIndustry: (value: string) => void
+  onSelectIndustry: (value: string | null) => void
 }) {
   return (
     <motion.div
@@ -183,42 +148,28 @@ function StepOrganization({
         )}
       </div>
 
-      {/* Industry radio cards */}
+      {/* Industry Select dropdown */}
       <div className="space-y-1.5">
-        <label className="text-white/50 text-xs font-medium uppercase tracking-wider">
+        <label className="text-white/50 text-xs font-medium uppercase tracking-wider inline-flex items-center">
           Industria
+          <HelpTooltip text="Selecciona el sector de tu empresa. Esto nos ayuda a personalizar tu experiencia." />
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-          {INDUSTRIES.map((industry) => (
-            <button
-              key={industry.value}
-              type="button"
-              onClick={() => onSelectIndustry(industry.value)}
-              className={`relative text-left p-4 rounded-xl border transition-all duration-200 ${
-                selectedIndustry === industry.value
-                  ? 'border-transparent bg-white/10 ring-2 ring-[#66cfd0]/60 shadow-lg shadow-[#66cfd0]/10'
-                  : 'border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20'
-              }`}
-            >
-              {selectedIndustry === industry.value && (
-                <motion.div
-                  layoutId="industry-indicator"
-                  className="absolute inset-0 rounded-xl border-2 border-[#66cfd0]/60"
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                />
-              )}
-              <div className="flex items-start gap-3">
-                <span className="text-2xl" role="img" aria-label={industry.title}>
-                  {industry.icon}
-                </span>
-                <div>
-                  <p className="text-white font-semibold text-sm">{industry.title}</p>
-                  <p className="text-white/40 text-xs mt-0.5">{industry.description}</p>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
+        <Select value={selectedIndustry} onValueChange={onSelectIndustry}>
+          <SelectTrigger className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white/90 text-sm h-auto focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors data-placeholder:text-white/25">
+            <SelectValue placeholder="Selecciona una industria" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#222831] border border-white/10">
+            {INDUSTRIES.map((industry) => (
+              <SelectItem
+                key={industry.value}
+                value={industry.value}
+                className="text-white/90 focus:bg-white/10 focus:text-white"
+              >
+                {industry.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {errors.industry && (
           <p className="text-red-400 text-xs mt-1">{errors.industry.message}</p>
         )}
@@ -228,120 +179,7 @@ function StepOrganization({
 }
 
 /* ============================================================
-   Step 2 — Configuration
-   ============================================================ */
-function StepConfiguration({
-  register,
-  errors,
-}: {
-  register: ReturnType<typeof useForm<OnboardingFormData>>['register']
-  errors: ReturnType<typeof useForm<OnboardingFormData>>['formState']['errors']
-}) {
-  const inputClass = 'w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-white/90 text-sm focus:outline-none focus:ring-2 focus:ring-[#66cfd0]/50 focus:border-[#66cfd0]/50 transition-colors'
-  const selectClass = `${inputClass} appearance-none cursor-pointer`
-  const labelClass = 'text-white/50 text-xs font-medium uppercase tracking-wider'
-
-  return (
-    <motion.div
-      key="step-2"
-      initial={{ opacity: 0, x: 50 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -50 }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="space-y-6"
-    >
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-bold text-white">Configuracion Operativa</h2>
-        <p className="text-white/40 text-sm mt-1">Ajusta los parametros de tu operacion</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Timezone */}
-        <div className="space-y-1.5">
-          <label className={labelClass}>Zona horaria</label>
-          <div className="relative">
-            <select {...register('timezone')} className={selectClass}>
-              {TIMEZONES.map(tz => (
-                <option key={tz.value} value={tz.value} className="bg-[#222831] text-white">
-                  {tz.label}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Currency */}
-        <div className="space-y-1.5">
-          <label className={labelClass}>Moneda</label>
-          <div className="relative">
-            <select {...register('currency')} className={selectClass}>
-              {CURRENCIES.map(c => (
-                <option key={c.value} value={c.value} className="bg-[#222831] text-white">
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* SLA hours */}
-        <div className="space-y-1.5">
-          <label className={labelClass}>SLA maximo (horas)</label>
-          <input
-            type="number"
-            min={1}
-            {...register('sla_hours', { valueAsNumber: true })}
-            className={inputClass}
-          />
-          {errors.sla_hours && (
-            <p className="text-red-400 text-xs mt-1">{errors.sla_hours.message}</p>
-          )}
-        </div>
-
-        {/* Max pause minutes */}
-        <div className="space-y-1.5">
-          <label className={labelClass}>Maximo pausa (minutos)</label>
-          <input
-            type="number"
-            min={1}
-            {...register('max_pause_minutes', { valueAsNumber: true })}
-            className={inputClass}
-          />
-          {errors.max_pause_minutes && (
-            <p className="text-red-400 text-xs mt-1">{errors.max_pause_minutes.message}</p>
-          )}
-        </div>
-
-        {/* Daily goal */}
-        <div className="space-y-1.5 sm:col-span-2">
-          <label className={labelClass}>Meta gestiones diarias</label>
-          <input
-            type="number"
-            min={1}
-            {...register('daily_goal', { valueAsNumber: true })}
-            className={inputClass}
-          />
-          {errors.daily_goal && (
-            <p className="text-red-400 text-xs mt-1">{errors.daily_goal.message}</p>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  )
-}
-
-/* ============================================================
-   Step 3 — Team
+   Step 2 — Team
    ============================================================ */
 function StepTeam({
   fields,
@@ -360,7 +198,7 @@ function StepTeam({
 
   return (
     <motion.div
-      key="step-3"
+      key="step-2"
       initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -50 }}
@@ -459,11 +297,6 @@ export default function OnboardingPage() {
     defaultValues: {
       name: '',
       industry: '',
-      timezone: 'America/Bogota',
-      currency: 'COP',
-      sla_hours: 24,
-      max_pause_minutes: 60,
-      daily_goal: 30,
       teamMembers: [],
     },
   })
@@ -484,8 +317,8 @@ export default function OnboardingPage() {
 
   const selectedIndustry = watch('industry')
 
-  const handleSelectIndustry = useCallback((value: string) => {
-    setValue('industry', value, { shouldValidate: true })
+  const handleSelectIndustry = useCallback((value: string | null) => {
+    setValue('industry', value ?? '', { shouldValidate: true })
   }, [setValue])
 
   const goNext = useCallback(async () => {
@@ -493,13 +326,11 @@ export default function OnboardingPage() {
 
     if (step === 1) {
       valid = await trigger(['name', 'industry'])
-    } else if (step === 2) {
-      valid = await trigger(['timezone', 'currency', 'sla_hours', 'max_pause_minutes', 'daily_goal'])
     } else {
       valid = true
     }
 
-    if (valid && step < 3) {
+    if (valid && step < 2) {
       setDirection(1)
       setStep(s => s + 1)
     }
@@ -523,13 +354,6 @@ export default function OnboardingPage() {
       await createOrganization({
         name: data.name,
         industry: data.industry,
-        config: {
-          timezone: data.timezone,
-          currency: data.currency,
-          sla_hours: data.sla_hours,
-          max_pause_minutes: data.max_pause_minutes,
-          daily_goal: data.daily_goal,
-        },
         teamMembers: validMembers.length > 0 ? validMembers : undefined,
       })
       // redirect happens inside the action
@@ -566,138 +390,134 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-2xl"
-      >
-        {/* Glassmorphic card */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 sm:p-10">
-          {/* Logo */}
-          <div className="text-center mb-6">
-            <Image
-              src="/images/bmg-plus-icon.svg"
-              alt="BMG+"
-              width={48}
-              height={48}
-              className="rounded-xl inline-block mb-3"
-            />
-            <h1 className="text-2xl font-bold text-white tracking-tight">BMG+</h1>
-            <p className="text-white/40 text-xs mt-1 tracking-widest uppercase">
-              Configuracion Inicial
-            </p>
-          </div>
+    <TooltipProvider>
+      <div className="min-h-screen flex items-center justify-center px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="w-full max-w-2xl"
+        >
+          {/* Glassmorphic card */}
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 sm:p-10">
+            {/* Logo */}
+            <div className="text-center mb-6">
+              <Image
+                src="/images/bmg-plus-icon.svg"
+                alt="BMG+"
+                width={48}
+                height={48}
+                className="rounded-xl inline-block mb-3"
+              />
+              <h1 className="text-2xl font-bold text-white tracking-tight">BMG+</h1>
+              <p className="text-white/40 text-xs mt-1 tracking-widest uppercase">
+                Configuracion Inicial
+              </p>
+            </div>
 
-          {/* Stepper */}
-          <Stepper currentStep={step} />
+            {/* Stepper */}
+            <Stepper currentStep={step} />
 
-          {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)}>
-            {/* Step content with animation */}
-            <AnimatePresence mode="wait" custom={direction}>
-              {step === 1 && (
-                <StepOrganization
-                  register={register}
-                  errors={errors}
-                  selectedIndustry={selectedIndustry}
-                  onSelectIndustry={handleSelectIndustry}
-                />
-              )}
-              {step === 2 && (
-                <StepConfiguration
-                  register={register}
-                  errors={errors}
-                />
-              )}
-              {step === 3 && (
-                <StepTeam
-                  fields={fields}
-                  append={append}
-                  remove={remove}
-                  register={register}
-                  errors={errors}
-                />
-              )}
-            </AnimatePresence>
-
-            {/* Error message */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 mt-6"
-              >
-                <p className="text-red-400 text-sm">{error}</p>
-              </motion.div>
-            )}
-
-            {/* Navigation buttons */}
-            <div className="flex items-center justify-between mt-8 gap-4">
-              {/* Back button */}
-              {step > 1 ? (
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm font-medium transition-colors"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M19 12H5" />
-                    <path d="M12 19l-7-7 7-7" />
-                  </svg>
-                  Atras
-                </button>
-              ) : (
-                <div />
-              )}
-
-              <div className="flex items-center gap-3">
-                {/* Skip link for step 3 */}
-                {step === 3 && (
-                  <button
-                    type="button"
-                    onClick={handleSkipTeam}
-                    className="text-white/40 hover:text-white/60 text-sm transition-colors"
-                  >
-                    Omitir
-                  </button>
+            {/* Form */}
+            <form onSubmit={handleSubmit(onSubmit)}>
+              {/* Step content with animation */}
+              <AnimatePresence mode="wait" custom={direction}>
+                {step === 1 && (
+                  <StepOrganization
+                    register={register}
+                    errors={errors}
+                    selectedIndustry={selectedIndustry}
+                    onSelectIndustry={handleSelectIndustry}
+                  />
                 )}
+                {step === 2 && (
+                  <StepTeam
+                    fields={fields}
+                    append={append}
+                    remove={remove}
+                    register={register}
+                    errors={errors}
+                  />
+                )}
+              </AnimatePresence>
 
-                {/* Next / Submit button */}
-                {step < 3 ? (
+              {/* Error message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 mt-6"
+                >
+                  <p className="text-red-400 text-sm">{error}</p>
+                </motion.div>
+              )}
+
+              {/* Navigation buttons */}
+              <div className="flex items-center justify-between mt-8 gap-4">
+                {/* Back button */}
+                {step > 1 ? (
                   <button
                     type="button"
-                    onClick={goNext}
-                    className="bg-linear-to-r from-[#fa5058] to-[#66cfd0] hover:from-[#fb6a70] hover:to-[#7dd8d9] text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 flex items-center gap-2"
+                    onClick={goBack}
+                    className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm font-medium transition-colors"
                   >
-                    Siguiente
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 12h14" />
-                      <path d="M12 5l7 7-7 7" />
+                      <path d="M19 12H5" />
+                      <path d="M12 19l-7-7 7-7" />
                     </svg>
+                    Atras
                   </button>
                 ) : (
-                  <button
-                    type="submit"
-                    className="bg-linear-to-r from-[#fa5058] to-[#66cfd0] hover:from-[#fb6a70] hover:to-[#7dd8d9] text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 flex items-center gap-2"
-                  >
-                    Finalizar
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                  </button>
+                  <div />
                 )}
-              </div>
-            </div>
-          </form>
-        </div>
 
-        {/* Footer */}
-        <p className="text-white/20 text-xs text-center mt-6 tracking-wider uppercase">
-          BMG+ Digital Architect | Onboarding
-        </p>
-      </motion.div>
-    </div>
+                <div className="flex items-center gap-3">
+                  {/* Skip link for step 2 */}
+                  {step === 2 && (
+                    <button
+                      type="button"
+                      onClick={handleSkipTeam}
+                      className="text-white/40 hover:text-white/60 text-sm transition-colors"
+                    >
+                      Omitir
+                    </button>
+                  )}
+
+                  {/* Next / Submit button */}
+                  {step < 2 ? (
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      className="bg-linear-to-r from-[#fa5058] to-[#66cfd0] hover:from-[#fb6a70] hover:to-[#7dd8d9] text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 flex items-center gap-2"
+                    >
+                      Siguiente
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14" />
+                        <path d="M12 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="bg-linear-to-r from-[#fa5058] to-[#66cfd0] hover:from-[#fb6a70] hover:to-[#7dd8d9] text-white font-semibold py-3 px-8 rounded-lg transition-all duration-200 flex items-center gap-2"
+                    >
+                      Finalizar
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Footer */}
+          <p className="text-white/20 text-xs text-center mt-6 tracking-wider uppercase">
+            BMG+ Digital Architect | Onboarding
+          </p>
+        </motion.div>
+      </div>
+    </TooltipProvider>
   )
 }

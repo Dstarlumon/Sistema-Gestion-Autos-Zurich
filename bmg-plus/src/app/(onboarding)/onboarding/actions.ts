@@ -12,29 +12,34 @@ interface TeamMember {
 interface OnboardingData {
   name: string
   industry: string
-  config: {
-    timezone: string
-    currency: string
-    sla_hours: number
-    max_pause_minutes: number
-    daily_goal: number
-  }
   teamMembers?: TeamMember[]
 }
+
+/* ============================================================
+   Generic starter campaigns (not industry-driven)
+   ============================================================ */
+const defaultCampaigns = [
+  { name: 'Campana Principal', slug: 'campana-principal', color: '#3b82f6', icon: '📋' },
+  { name: 'Inbound', slug: 'inbound', color: '#0284c7', icon: '📞' },
+]
 
 export async function createOrganization(data: OnboardingData) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('No autenticado')
 
-  // 1. Create organization
+  // 1. Create organization with default config
   const { data: org, error: orgError } = await supabase
     .from('organizations')
     .insert({
       name: data.name,
       industry: data.industry,
       plan: 'starter',
-      config: data.config,
+      config: {
+        timezone: 'America/Bogota',
+        currency: 'COP',
+        max_pause_minutes: 60,
+      },
     })
     .select('id')
     .single()
@@ -49,44 +54,10 @@ export async function createOrganization(data: OnboardingData) {
 
   if (profileError) throw new Error('Error al vincular perfil')
 
-  // 3. Seed campaigns based on industry
-  const campaignsByIndustry: Record<string, Array<{ name: string; slug: string; color: string; icon: string }>> = {
-    seguros: [
-      { name: 'Autos', slug: 'autos', color: '#3b82f6', icon: '🚗' },
-      { name: 'Hogar', slug: 'hogar', color: '#059669', icon: '🏠' },
-      { name: 'Hogar Renovaciones', slug: 'hogar_renov', color: '#0d9488', icon: '🔄' },
-      { name: 'Arrendamiento', slug: 'arrendamiento', color: '#7c3aed', icon: '🏢' },
-      { name: 'Pymes', slug: 'pymes', color: '#d97706', icon: '🏪' },
-      { name: 'DirecTV', slug: 'directv', color: '#dc2626', icon: '📺' },
-      { name: 'Inbound/Chatbot', slug: 'inbound', color: '#0284c7', icon: '📞' },
-    ],
-    telecomunicaciones: [
-      { name: 'Movil', slug: 'movil', color: '#3b82f6', icon: '📱' },
-      { name: 'Internet', slug: 'internet', color: '#059669', icon: '🌐' },
-      { name: 'TV', slug: 'tv', color: '#dc2626', icon: '📺' },
-      { name: 'Convergente', slug: 'convergente', color: '#7c3aed', icon: '📦' },
-    ],
-    financiero: [
-      { name: 'Creditos', slug: 'creditos', color: '#3b82f6', icon: '💳' },
-      { name: 'Tarjetas', slug: 'tarjetas', color: '#d97706', icon: '💰' },
-      { name: 'Cuentas', slug: 'cuentas', color: '#059669', icon: '🏦' },
-      { name: 'Seguros', slug: 'seguros', color: '#7c3aed', icon: '🛡️' },
-    ],
-    salud: [
-      { name: 'EPS', slug: 'eps', color: '#059669', icon: '🏥' },
-      { name: 'Medicina Prepagada', slug: 'medicina', color: '#3b82f6', icon: '💊' },
-      { name: 'Citas', slug: 'citas', color: '#d97706', icon: '📅' },
-    ],
-    otro: [
-      { name: 'General', slug: 'general', color: '#3b82f6', icon: '📋' },
-    ],
-  }
-
-  const campaigns = campaignsByIndustry[data.industry] || campaignsByIndustry.otro
-
+  // 3. Seed generic starter campaigns (regardless of industry)
   const { data: createdCampaigns } = await supabase
     .from('campaigns')
-    .insert(campaigns.map(c => ({ ...c, organization_id: org.id })))
+    .insert(defaultCampaigns.map(c => ({ ...c, organization_id: org.id })))
     .select('id, slug')
 
   // 4. Seed campaign bases per campaign

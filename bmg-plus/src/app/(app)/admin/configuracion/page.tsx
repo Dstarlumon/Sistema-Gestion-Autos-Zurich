@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useRole } from '@/hooks/use-role'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { HelpTooltip } from '@/components/shared/help-tooltip'
 
 // ---------------------------------------------------------------------------
 // Config types
@@ -235,6 +237,7 @@ function ConfigForm({ org }: { org: Organization }) {
   }, [vitxiUrl, vitxiKey])
 
   return (
+    <TooltipProvider>
     <div className="space-y-5">
       {/* Section 1: Organization */}
       <motion.div
@@ -309,8 +312,9 @@ function ConfigForm({ org }: { org: Organization }) {
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="text-label-sm text-on-surface-variant block mb-1.5">
+              <label className="text-label-sm text-on-surface-variant mb-1.5 flex items-center">
                 Zona horaria
+                <HelpTooltip text="Define la hora local de tu operacion. Afecta reportes, cron jobs y marcas de tiempo." />
               </label>
               <select
                 value={timezone}
@@ -327,8 +331,9 @@ function ConfigForm({ org }: { org: Organization }) {
               </select>
             </div>
             <div>
-              <label className="text-label-sm text-on-surface-variant block mb-1.5">
+              <label className="text-label-sm text-on-surface-variant mb-1.5 flex items-center">
                 Moneda
+                <HelpTooltip text="Formato de moneda para valores de prima, poliza y reportes financieros." />
               </label>
               <select
                 value={currency}
@@ -342,8 +347,9 @@ function ConfigForm({ org }: { org: Organization }) {
               </select>
             </div>
             <div>
-              <label className="text-label-sm text-on-surface-variant block mb-1.5">
+              <label className="text-label-sm text-on-surface-variant mb-1.5 flex items-center">
                 Max. pausa (minutos)
+                <HelpTooltip text="Tiempo maximo permitido de pausa por agente antes de generar una alerta de abuso." />
               </label>
               <input
                 type="number"
@@ -355,8 +361,9 @@ function ConfigForm({ org }: { org: Organization }) {
               />
             </div>
             <div>
-              <label className="text-label-sm text-on-surface-variant block mb-1.5">
+              <label className="text-label-sm text-on-surface-variant mb-1.5 flex items-center">
                 SLA maximo (horas)
+                <HelpTooltip text="Tiempo maximo para contactar un lead nuevo. Leads sin gestion despues de este tiempo generan alerta." />
               </label>
               <input
                 type="number"
@@ -371,8 +378,9 @@ function ConfigForm({ org }: { org: Organization }) {
               </p>
             </div>
             <div>
-              <label className="text-label-sm text-on-surface-variant block mb-1.5">
+              <label className="text-label-sm text-on-surface-variant mb-1.5 flex items-center">
                 Meta gestiones diarias
+                <HelpTooltip text="Numero de gestiones que cada agente debe completar por dia." />
               </label>
               <input
                 type="number"
@@ -530,6 +538,7 @@ function ConfigForm({ org }: { org: Organization }) {
         </ConfigCard>
       </motion.div>
     </div>
+    </TooltipProvider>
   )
 }
 
