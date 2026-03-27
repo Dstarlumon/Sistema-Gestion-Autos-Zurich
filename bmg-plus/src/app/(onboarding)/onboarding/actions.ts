@@ -24,12 +24,17 @@ const defaultCampaigns = [
 ]
 
 export async function createOrganization(data: OnboardingData) {
+  // Use authenticated client to verify the user
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('No autenticado')
 
+  // Use admin client for onboarding operations (bypasses RLS)
+  // This is a privileged setup action — the first coordinator is creating their org
+  const admin = createAdminClient()
+
   // 1. Create organization with default config
-  const { data: org, error: orgError } = await supabase
+  const { data: org, error: orgError } = await admin
     .from('organizations')
     .insert({
       name: data.name,
@@ -47,7 +52,7 @@ export async function createOrganization(data: OnboardingData) {
   if (orgError || !org) throw new Error('Error al crear organizacion: ' + orgError?.message)
 
   // 2. Link coordinator profile to organization
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from('profiles')
     .update({ organization_id: org.id })
     .eq('id', user.id)
@@ -55,7 +60,7 @@ export async function createOrganization(data: OnboardingData) {
   if (profileError) throw new Error('Error al vincular perfil')
 
   // 3. Seed generic starter campaigns (regardless of industry)
-  const { data: createdCampaigns } = await supabase
+  const { data: createdCampaigns } = await admin
     .from('campaigns')
     .insert(defaultCampaigns.map(c => ({ ...c, organization_id: org.id })))
     .select('id, slug')
@@ -66,7 +71,7 @@ export async function createOrganization(data: OnboardingData) {
       const defaultBases = ['Directo', 'Pauta', 'Inbound', 'Chatbot']
       return defaultBases.map(name => ({ campaign_id: c.id, name }))
     })
-    await supabase.from('campaign_bases').insert(bases)
+    await admin.from('campaign_bases').insert(bases)
   }
 
   // 5. Seed FULL tipificacion tree (all 33 nodes, not just roots)
@@ -80,7 +85,7 @@ export async function createOrganization(data: OnboardingData) {
     { name: 'POSITIVO', level: 1, sort_order: 4 },
   ]
 
-  const { data: rootNodes } = await supabase
+  const { data: rootNodes } = await admin
     .from('tipificacion_tree')
     .insert(roots.map(r => ({ ...r, organization_id: orgId })))
     .select('id, name')
@@ -124,15 +129,13 @@ export async function createOrganization(data: OnboardingData) {
       { parent_id: rootMap['POSITIVO'], name: 'Venta', level: 2, sort_order: 3 },
     ]
 
-    await supabase
+    await admin
       .from('tipificacion_tree')
       .insert(children.map(c => ({ ...c, organization_id: orgId })))
   }
 
   // 6. Create team members if provided
   if (data.teamMembers && data.teamMembers.length > 0) {
-    const admin = createAdminClient()
-
     for (const member of data.teamMembers) {
       try {
         const { data: newUser } = await admin.auth.admin.createUser({
